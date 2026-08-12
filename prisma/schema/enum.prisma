@@ -1,0 +1,71 @@
+enum PlatformRole {
+  SUPERADMIN
+  USER
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  HR
+  MANAGER
+  EMPLOYEE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum AuthProvider {
+  CREDENTIAL
+  GOOGLE
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  RESIGNED
+  TERMINATED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  LEAVE
+  HOLIDAY
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSED
+}
+
+enum PaymentStatus {
+  PENDING
+  CANCELLED
+  SUCCEEDED
+}
+
+enum PlanType {
+  FREE
+  GOLD
+  DIAMOND
+  PLATINUM
+}

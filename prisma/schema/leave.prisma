@@ -1,0 +1,51 @@
+model LeaveType {
+  id             String @id @default(uuid())
+  organizationId String
+
+  name        String
+  daysPerYear Int
+  isPaid      Boolean @default(true)
+  isActive    Boolean @default(true)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  requests LeaveRequest[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("leave_types")
+}
+
+model LeaveRequest {
+  id String @id @default(uuid())
+
+  organizationId String
+  employeeId     String
+  leaveTypeId    String
+
+  startDate DateTime
+  endDate   DateTime
+
+  totalDays Int
+
+  reason String?
+
+  status LeaveRequestStatus @default(PENDING)
+
+  approvedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([employeeId, status])
+  @@index([organizationId, startDate, endDate])
+  @@map("leave_requests")
+}

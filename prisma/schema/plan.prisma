@@ -1,0 +1,28 @@
+model Plan {
+  id String @id @default(uuid())
+
+  type PlanType @unique
+
+  name String
+
+  price Decimal
+
+  maxOwners    Int
+  maxAdmins    Int
+  maxHR        Int
+  maxManagers  Int
+  maxEmployees Int
+
+  durationDays Int @default(365)
+
+  features Json
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
