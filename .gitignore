@@ -1,0 +1,19 @@
+node_modules
+# Keep environment variables out of version control
+node_modules
+.env
+.env.*
+!.env.example
+dist
+
+/src/generated
+
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+pnpm-workspace.yaml
+.vscode
+.claude
+.agents
+
+.windsurf

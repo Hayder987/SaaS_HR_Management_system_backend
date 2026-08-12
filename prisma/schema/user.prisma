@@ -1,0 +1,32 @@
+model User {
+  id              String    @id @default(uuid()) 
+
+  name            String
+  email           String    @unique
+  passwordHash    String?
+
+  avatarUrl       String?
+
+  isEmailVerified Boolean   @default(false)
+  isActive        Boolean   @default(true)
+
+  lastLoginAt     DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+//   // Relations
+//   organizationMembers OrganizationMember[]
+//   employees           Employee[]
+//   notifications       Notification[]
+//   auditLogs            AuditLog[]
+
+ 
+//   approvedLeaveRequests LeaveRequest[] @relation("LeaveApprover")
+
+//   announcements Announcement[]
+
+  @@index([email])
+  @@index([isActive])
+  @@map("users")
+}
