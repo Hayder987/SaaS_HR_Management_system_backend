@@ -12,6 +12,7 @@ import { generateOtp } from "../../utils/createOtp";
 import path from "path";
 import { transporter } from "../../lib/nodemailer";
 import config from "../../config";
+import { redisClient } from "../../lib/redis";
 
 // resister user
 const registerUser = async (payload: IRegisterUser) => {
@@ -94,7 +95,72 @@ const forgotPassword = async (payload: IForgotPassword) => {
 };
 
 // reset password
-const resetPassword = async (payload: IResetPassword) => {};
+const resetPassword = async (payload: IResetPassword) => {
+  const { email, otp, newPassword } = payload;
+
+  const isUserExist = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+
+  if (!isUserExist) {
+    throw new Error("User Does Not Exist!");
+  }
+
+  if (isUserExist.status !== UserStatus.ACTIVE) {
+    throw new Error("User Maybe Suspend Or Blocked");
+  }
+
+  if (!isUserExist.isEmailVerified) {
+    throw new Error("User Not Verified");
+  }
+
+  const key = `forgot-password-otp:${isUserExist.email}`;
+  const redisOtp = await redisClient.get(key);
+
+  if (!redisOtp) {
+    throw new Error("Invalid OTP");
+  }
+
+  if (redisOtp !== otp) {
+    throw new Error("OTP Does Not Match");
+  }
+
+  const hashedNewPassword = await bcrypt.hash(
+    newPassword,
+    Number(config.bcrypt_salt_rounds),
+  );
+
+  await prisma.user.update({
+    where: {
+      email: isUserExist.email,
+    },
+    data: {
+      password: hashedNewPassword,
+    },
+  });
+
+  await redisClient.del([key]);
+
+  const templatePath = path.join(
+    process.cwd(),
+    "src/app/templates/reset-password-success.ejs",
+  );
+
+  const templateData = {
+    name: isUserExist.name,
+  };
+
+  const html = await ejs.renderFile(templatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: isUserExist.email,
+    subject: "Password Changed",
+    html,
+  });
+};
 
 export const authServices = {
   registerUser,
