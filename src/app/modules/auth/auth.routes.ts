@@ -14,6 +14,14 @@ router.post(
   authController.registerUser,
 );
 
+// verify email
+router.post(
+  "/verify-email",
+  authRateLimiter,
+  validateRequest(authValidation.verifyEmailZodSchema),
+  authController.verifyEmail,
+);
+
 // forgot password
 router.post(
   "/forgot-password",
@@ -29,7 +37,6 @@ router.post(
   validateRequest(authValidation.ResetPasswordZodSchema),
   authController.resetPassword,
 );
-
 
 
 export const authRoutes = router;

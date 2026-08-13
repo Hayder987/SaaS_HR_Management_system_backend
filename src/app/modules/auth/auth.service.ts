@@ -5,6 +5,7 @@ import {
   IForgotPassword,
   IRegisterUser,
   IResetPassword,
+  IVerifyEmailPayload,
 } from "./auth.interface";
 import { UserRole, UserStatus } from "../../../generated/prisma/enums";
 import crypto from "crypto";
@@ -43,7 +44,32 @@ const registerUser = async (payload: IRegisterUser) => {
     },
   });
 
-  return createUser;
+  if (!createUser.isEmailVerified) {
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const key = `email-verification:${createUser.email}`;
+
+    await generateOtp(key, otp);
+
+    const templatePath = path.join(
+      process.cwd(),
+      "src/app/templates/verify-email.ejs",
+    );
+
+    const templateData = {
+      name: createUser.name,
+      otp,
+      expirationMinutes: 5,
+    };
+
+    const html = await ejs.renderFile(templatePath, templateData);
+
+    await transporter.sendMail({
+      from: config.email_sender,
+      to: createUser.email,
+      subject: "verify Email",
+      html,
+    });
+  }
 };
 
 // forgot password
@@ -162,8 +188,73 @@ const resetPassword = async (payload: IResetPassword) => {
   });
 };
 
+// verify email
+const verifyEmail = async (payload: IVerifyEmailPayload) => {
+  const { email, otp } = payload;
+
+  const isUserExist = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+
+  if (!isUserExist) {
+    throw new Error("User Does Not Exist!");
+  }
+
+  if (isUserExist.isEmailVerified) {
+    throw new Error("Email is already verified");
+  }
+
+  if (isUserExist.status !== UserStatus.ACTIVE) {
+    throw new Error("User Maybe Suspend Or Blocked");
+  }
+
+
+  const key = `email-verification:${isUserExist.email}`;
+  const redisOtp = await redisClient.get(key);
+
+  if (!redisOtp) {
+    throw new Error("Invalid OTP");
+  }
+
+  if (redisOtp !== otp) {
+    throw new Error("OTP Does Not Match");
+  }
+
+  await prisma.user.update({
+    where: {
+      email: isUserExist.email,
+    },
+    data: {
+      isEmailVerified: true,
+    },
+  });
+
+  await redisClient.del([key]);
+
+  const templatePath = path.join(
+    process.cwd(),
+    "src/app/templates/email-verified-success.ejs",
+  );
+
+  const templateData = {
+    name: isUserExist.name,
+  };
+
+  const html = await ejs.renderFile(templatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: isUserExist.email,
+    subject: "Email Verified SuccessFully",
+    html,
+  });
+};
+
 export const authServices = {
   registerUser,
   forgotPassword,
   resetPassword,
+  verifyEmail,
 };

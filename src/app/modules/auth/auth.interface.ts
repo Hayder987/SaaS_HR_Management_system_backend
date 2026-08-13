@@ -4,6 +4,11 @@ export interface IRegisterUser {
   password: string;
 }
 
+export interface IVerifyEmailPayload {
+  email: string;
+  otp: string;
+}
+
 export interface IForgotPassword {
   email: string
 }

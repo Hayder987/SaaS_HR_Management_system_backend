@@ -24,6 +24,13 @@ export interface IRegisterUser {
     .regex(/[^A-Za-z0-9]/, "Password must contain atleast 1 Special Character"),
 });
 
+// verify EmailSchema
+const verifyEmailZodSchema = z.object({
+  email: z.email(),
+	otp : z.string().length(6),
+});
+
+
 // forgotPasswordSchema
 const forgotPasswordZodSchema = z.object({
    email: z.email("Enter Valid Email")
@@ -39,12 +46,13 @@ const ResetPasswordZodSchema = z.object({
         .regex(/[0-9]/, "Password must contain atleast 1 Number")
         .regex(/[^A-Za-z0-9]/, "Password must contain atleast 1 Special Character"),
 	otp : z.string().length(6)
-})
+});
 
 
 // export schema
 export const authValidation = {
     registerUserZodSchema,
     forgotPasswordZodSchema,
-    ResetPasswordZodSchema
+    ResetPasswordZodSchema,
+    verifyEmailZodSchema
 }

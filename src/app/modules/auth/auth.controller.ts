@@ -8,13 +8,13 @@ import { authServices } from "./auth.service";
 const registerUser = catchAsync(async (req: Request, res: Response) => {
   const payload = req.body;
 
-  const result = await authServices.registerUser(payload);
+   await authServices.registerUser(payload);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message: "User registered successfully",
-    data: result,
+    message: "User registered successfully & Email Verify OTP send To Your Mail",
+    data: null,
   });
 });
 
@@ -22,13 +22,13 @@ const registerUser = catchAsync(async (req: Request, res: Response) => {
 const forgotPassword = catchAsync(async (req: Request, res: Response) => {
   const payload = req.body;
 
-  const result = await authServices.forgotPassword(payload);
+   await authServices.forgotPassword(payload);
 
   sendResponse(res, {
-    statusCode: httpStatus.CREATED,
+    statusCode: httpStatus.OK,
     success: true,
     message: `Verification OTP send to Email: ${payload.email}`,
-    data: result,
+    data: null,
   });
 });
 
@@ -36,13 +36,27 @@ const forgotPassword = catchAsync(async (req: Request, res: Response) => {
 const resetPassword = catchAsync(async (req: Request, res: Response) => {
   const payload = req.body;
 
-  const result = await authServices.resetPassword(payload);
+   await authServices.resetPassword(payload);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
     message: "Password Reset successfully",
-    data: result,
+    data: null,
+  });
+});
+
+// verify email
+const verifyEmail = catchAsync(async (req: Request, res: Response) => {
+  const payload = req.body;
+
+  await authServices.verifyEmail(payload);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Email Verified successfully And Send Success Mail",
+    data: null,
   });
 });
 
@@ -50,4 +64,5 @@ export const authController = {
   registerUser,
   forgotPassword,
   resetPassword,
+  verifyEmail
 };
