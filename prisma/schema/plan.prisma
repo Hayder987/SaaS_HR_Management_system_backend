@@ -3,7 +3,7 @@ model Plan {
 
   name PlanName @unique
 
-  stripePriceId String @unique
+  stripePriceId String? @unique
 
   price Decimal @db.Decimal(10, 2)
 
