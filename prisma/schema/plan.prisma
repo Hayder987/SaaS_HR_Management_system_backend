@@ -1,26 +1,17 @@
 model Plan {
   id String @id @default(uuid())
 
-  type PlanType @unique
+  name PlanName @unique
 
-  name String
+  stripePriceId String @unique
 
-  price Decimal
+  price Decimal @db.Decimal(10, 2)
 
-  maxOwners    Int
   maxAdmins    Int
-  maxHR        Int
-  maxManagers  Int
+  maxHRs       Int
   maxEmployees Int
 
-  durationDays Int @default(365)
-
-  features Json
-
   isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   subscriptions Subscription[]
 

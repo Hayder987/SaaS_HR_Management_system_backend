@@ -1,71 +1,64 @@
-enum PlatformRole {
-  SUPERADMIN
-  USER
-}
-
-enum OrganizationRole {
-  OWNER
-  ADMIN
-  HR
-  MANAGER
-  EMPLOYEE
+enum UserRole {
+  PLATFORM_USER
+  SUPER_ADMIN
 }
 
 enum UserStatus {
   ACTIVE
-  INACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  HR
+  EMPLOYEE
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  REVOKED
+}
+
+enum OrganizationStatus {
+  ACTIVE
   SUSPENDED
 }
 
-enum AuthProvider {
-  CREDENTIAL
-  GOOGLE
-}
-
-enum EmploymentType {
-  FULL_TIME
-  PART_TIME
-  CONTRACT
-  INTERN
-}
-
-enum EmployeeStatus {
+enum EmploymentStatus {
   ACTIVE
   ON_LEAVE
-  RESIGNED
   TERMINATED
 }
 
-enum AttendanceStatus {
-  PRESENT
-  ABSENT
-  LATE
-  HALF_DAY
-  LEAVE
-  HOLIDAY
+enum PlanName {
+  BASIC
+  GOLD
+  DIAMOND
+  PLATINUM
 }
 
-enum LeaveRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
-}
-
-enum PayrollStatus {
-  DRAFT
-  PROCESSED
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
 }
 
 enum PaymentStatus {
   PENDING
-  CANCELLED
-  SUCCEEDED
+  PAID
+  FAILED
+  REFUNDED
 }
 
-enum PlanType {
-  FREE
-  GOLD
-  DIAMOND
-  PLATINUM
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
 }

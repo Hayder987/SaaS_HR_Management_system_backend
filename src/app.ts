@@ -10,6 +10,7 @@ import httpStatus from "http-status";
 import config from "./app/config";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
+import { authRoutes } from "./app/modules/auth/auth.routes";
 
 
 
@@ -30,6 +31,9 @@ app.use(express.urlencoded({ extended: true }));
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(cookieParser());
+
+// route middleware
+app.use("/api/v1/auth", authRoutes);
 
 
 // test api for development

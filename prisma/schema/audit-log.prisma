@@ -1,21 +1,23 @@
 model AuditLog {
-  id             String @id @default(uuid())
-  organizationId String
+  id String @id @default(uuid())
 
-  userId String?
+  organizationId String?
+  userId         String?
 
   action   String
   entity   String
-  entityId String
+  entityId String?
+
+  metadata Json?
 
   createdAt DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, createdAt])
-  @@index([organizationId, entity, entityId])
-  @@index([userId, createdAt])
+  @@index([organizationId, action])
+  @@index([entity, entityId])
   @@map("audit_logs")
 }

@@ -1,28 +1,21 @@
 model User {
-  id           String       @id @default(uuid())
-  name         String
-  email        String       @unique
-  password     String?
-  avatarUrl    String?
-  platformRole PlatformRole @default(USER)
-  status       UserStatus   @default(ACTIVE)
-  authProvider AuthProvider @default(CREDENTIAL)
-
-  // Permanent email verification state
-  isEmailVerified Boolean @default(false)
-
-  lastLoginAt DateTime?
+  id              String     @id @default(uuid())
+  name            String
+  email           String     @unique
+  passwordHash    String?
+  role            UserRole   @default(PLATFORM_USER)
+  isEmailVerified Boolean    @default(false)
+  status          UserStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  organizationMembers OrganizationMember[]
-  employee            Employee?
-  notifications       Notification[]
-  auditLogs           AuditLog[]
+  memberships    Membership[]
+  employments    Employee[]
+  payments       Payment[]
+  reviewedLeaves LeaveRequest[] @relation("LeaveReviewer")
+  auditLogs      AuditLog[]
 
-  @@index([platformRole])
-  @@index([status])
+  @@index([email, status])
   @@map("users")
 }

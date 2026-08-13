@@ -1,24 +1,25 @@
 model Subscription {
-  id             String @id @default(uuid())
-  organizationId String
+  id String @id @default(uuid())
+
+  organizationId String @unique
   planId         String
 
-  status PaymentStatus @default(PENDING)
+  stripeCustomerId     String?
+  stripeSubscriptionId String? @unique
 
-  startDate DateTime
-  endDate   DateTime
+  status SubscriptionStatus @default(TRIALING)
+
+  currentPeriodEnd DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  plan Plan @relation(fields: [planId], references: [id])
 
   payments Payment[]
 
   @@index([organizationId, status])
-  @@index([organizationId, endDate])
-  @@index([planId])
   @@map("subscriptions")
 }
