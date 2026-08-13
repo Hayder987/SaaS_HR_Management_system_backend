@@ -2,7 +2,7 @@ model User {
   id              String     @id @default(uuid())
   name            String
   email           String     @unique
-  passwordHash    String?
+  password        String?
   role            UserRole   @default(PLATFORM_USER)
   isEmailVerified Boolean    @default(false)
   status          UserStatus @default(ACTIVE)

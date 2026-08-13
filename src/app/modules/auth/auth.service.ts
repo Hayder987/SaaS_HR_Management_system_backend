@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma";
 import { IRegisterUser } from "./auth.interface";
-import { PlatformRole, UserStatus } from "../../../generated/prisma/enums";
+import { UserRole, UserStatus } from "../../../generated/prisma/enums";
 
 // resister user
 const registerUser = async (payload: IRegisterUser) => {
@@ -20,10 +20,10 @@ const registerUser = async (payload: IRegisterUser) => {
 
   const createUser = await prisma.user.create({
     data:{
-     name,
+      name,
       email,
       password: hashedPassword,
-      platformRole: PlatformRole.USER,
+      role: UserRole.PLATFORM_USER,
       status: UserStatus.ACTIVE,
       isEmailVerified: false,
     },

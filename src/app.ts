@@ -11,10 +11,22 @@ import config from "./app/config";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
 import { authRoutes } from "./app/modules/auth/auth.routes";
-
-
+import helmet from "helmet";
+import { requestLogger } from "./app/middleware/requestLogger";
+import { apiRateLimiter } from "./app/middleware/rateLimiter";
 
 const app: Application = express();
+
+// using helmet middleware
+app.use(
+  helmet({
+    crossOriginResourcePolicy: {
+      policy: "cross-origin",
+    },
+  }),
+);
+
+app.use(requestLogger);
 
 app.use(
 	cors({
@@ -34,6 +46,9 @@ app.use(cookieParser());
 
 // route middleware
 app.use("/api/v1/auth", authRoutes);
+
+// Global API rate limiter
+app.use("/api", apiRateLimiter);
 
 
 // test api for development
