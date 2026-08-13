@@ -31,9 +31,26 @@ const getAllPlan = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get plan by id
+const getPlanById = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    const result = await planServices.getPlanById(id as string);
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Plan retrieved successfully",
+      data: result,
+    });
+  },
+);
+
 
 // export plan controller
 export const planController = {
  createPlan,
- getAllPlan
+ getAllPlan,
+ getPlanById
 }

@@ -193,8 +193,38 @@ const getAllPlan = async () => {
   return formattedData;
 };
 
+// get plan by id
+const getPlanById = async (id: string) => {
+  const plan = await prisma.plan.findFirst({
+    where: {
+      id,
+      isActive: true,
+    },
+
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      maxAdmins: true,
+      maxHRs: true,
+      maxEmployees: true,
+      isActive: true,
+    },
+  });
+
+  if (!plan) {
+    throw new Error("Plan not found");
+  }
+
+  return {
+    ...plan,
+    price: Number(plan.price),
+  };
+};
+
 // export plan services
 export const planServices = {
   createPlan,
   getAllPlan,
+  getPlanById,
 };
