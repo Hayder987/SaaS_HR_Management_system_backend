@@ -38,5 +38,12 @@ router.post(
   authController.resetPassword,
 );
 
+// resendOtp
+router.post(
+  "/resend-otp",
+  authRateLimiter,
+  validateRequest(authValidation.resendOtpZodSchema),
+  authController.resendOtp,
+);
 
 export const authRoutes = router;

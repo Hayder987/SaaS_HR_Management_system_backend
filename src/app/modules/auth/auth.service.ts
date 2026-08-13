@@ -210,7 +210,6 @@ const verifyEmail = async (payload: IVerifyEmailPayload) => {
     throw new Error("User Maybe Suspend Or Blocked");
   }
 
-
   const key = `email-verification:${isUserExist.email}`;
   const redisOtp = await redisClient.get(key);
 
@@ -252,9 +251,72 @@ const verifyEmail = async (payload: IVerifyEmailPayload) => {
   });
 };
 
+// resend otp email verify and forgot password
+const resendOtp = async (payload: any) => {
+  const { email, emailVerify } = payload;
+
+  const isUserExist = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+
+  if (!isUserExist) {
+    throw new Error("User Does Not Exist!");
+  }
+
+  if (isUserExist.status !== UserStatus.ACTIVE) {
+    throw new Error("User Maybe Suspend Or Blocked");
+  }
+
+  if (emailVerify && isUserExist.isEmailVerified) {
+    throw new Error("Email Already Verified");
+  }
+
+  if (!emailVerify && !isUserExist.isEmailVerified) {
+    throw new Error("Email Not Verified Verified");
+  }
+
+  const otp = crypto.randomInt(100000, 1000000).toString();
+
+  const emailKey = `email-verification:${isUserExist.email}`;
+  const forgotKey = `forgot-password-otp:${isUserExist.email}`;
+  const expirationSeconds = 5 * 60;
+
+  const key = emailVerify ? emailKey : forgotKey;
+
+  await redisClient.set(key, otp, {
+    expiration: {
+      type: "EX",
+      value: expirationSeconds,
+    },
+  });
+
+  const templatePath = path.join(
+    process.cwd(),
+    "src/app/templates/resend-otp.ejs",
+  );
+
+  const templateData = {
+    name: isUserExist.name,
+    otp,
+    expirationMinutes: 5,
+  };
+
+  const html = await ejs.renderFile(templatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: isUserExist.email,
+    subject: `New Verification Code Send SuccessFully`,
+    html,
+  });
+};
+
 export const authServices = {
   registerUser,
   forgotPassword,
   resetPassword,
   verifyEmail,
+  resendOtp,
 };

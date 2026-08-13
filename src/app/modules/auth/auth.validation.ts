@@ -36,6 +36,7 @@ const forgotPasswordZodSchema = z.object({
    email: z.email("Enter Valid Email")
 });
 
+// reset Pass Zod Schema
 const ResetPasswordZodSchema = z.object({
 	email: z.email(),
 	newPassword: z.string()
@@ -48,11 +49,21 @@ const ResetPasswordZodSchema = z.object({
 	otp : z.string().length(6)
 });
 
+// resend OTP Schema
+const resendOtpZodSchema = z.object({
+  email: z.email("Invalid email address"),
+
+  emailVerify: z
+    .boolean()
+});
+
+
 
 // export schema
 export const authValidation = {
     registerUserZodSchema,
     forgotPasswordZodSchema,
     ResetPasswordZodSchema,
-    verifyEmailZodSchema
+    verifyEmailZodSchema,
+    resendOtpZodSchema
 }

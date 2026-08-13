@@ -18,3 +18,8 @@ export interface IResetPassword {
   otp: string;
   newPassword: string;
 }
+
+export interface IResendOtp {
+  email : string,
+  emailVerify: boolean
+}

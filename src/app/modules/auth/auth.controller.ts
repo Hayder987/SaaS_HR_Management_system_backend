@@ -60,9 +60,24 @@ const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// resend otp email verify or forgot pass otp
+const resendOtp = catchAsync(async (req: Request, res: Response) => {
+  const payload = req.body;
+
+  await authServices.resendOtp(payload);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: `New Verification OTP Code send to Email: ${payload.email}`,
+    data: null,
+  });
+});
+
 export const authController = {
   registerUser,
   forgotPassword,
   resetPassword,
-  verifyEmail
+  verifyEmail,
+  resendOtp
 };
