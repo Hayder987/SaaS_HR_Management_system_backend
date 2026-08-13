@@ -54,24 +54,6 @@ app.use("/api/v1/plans", planRoutes);
 app.use("/api", apiRateLimiter);
 
 
-
-// test api for development
-app.get("/test", async (req: Request, res: Response, next : NextFunction) => {
-
-	try {
-
-		res.status(httpStatus.OK).json({
-			success: true,
-			message: "Welcome to PH Healthcare System Backend",
-			data : {}
-		});
-	} catch (error) {
-		console.log(error);
-		next(error)
-	}
-})
-
-
 // Basic route
 app.get("/", async (req: Request, res: Response) => {
 	res.status(httpStatus.OK).json({

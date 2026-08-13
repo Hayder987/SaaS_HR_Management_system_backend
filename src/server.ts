@@ -3,20 +3,24 @@ import config from "./app/config";
 import { transporter } from "./app/lib/nodemailer";
 import { prisma } from "./app/lib/prisma";
 import { redisClient } from "./app/lib/redis";
+import { seedSuperAdmin } from "./app/utils/seed";
 
 const PORT = config.port;
 
 const main = async () => {
   try {
     await prisma.$connect();
-      console.log("Connected to the database successfully.");
+    console.log("Connected to the database successfully.");
 
     // connect redis
     await redisClient.connect();
-      console.log("Connected to Redis Server SuccessFully");
+    console.log("Connected to Redis Server SuccessFully");
 
-	await transporter.verify();
-	  console.log("Nodemailer Connected Successfully.");
+    await transporter.verify();
+    console.log("Nodemailer Connected Successfully.");
+
+    // initial create superAdmin,
+    await seedSuperAdmin();
 
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);

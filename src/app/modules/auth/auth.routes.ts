@@ -14,6 +14,9 @@ router.post(
   authController.registerUser,
 );
 
+// login user superAdmin
+// router.post("/login", )
+
 // verify email
 router.post(
   "/verify-email",
