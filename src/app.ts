@@ -47,6 +47,7 @@ app.use(cookieParser());
 // route middleware
 app.use("/api/v1/auth", authRoutes);
 
+
 // Global API rate limiter
 app.use("/api", apiRateLimiter);
 

@@ -14,4 +14,22 @@ router.post(
   authController.registerUser,
 );
 
+// forgot password
+router.post(
+  "/forgot-password",
+  authRateLimiter,
+  validateRequest(authValidation.forgotPasswordZodSchema),
+  authController.forgotPassword,
+);
+
+//reset password
+router.post(
+  "/reset-password",
+  authRateLimiter,
+  validateRequest(authValidation.ResetPasswordZodSchema),
+  authController.resetPassword,
+);
+
+
+
 export const authRoutes = router;
