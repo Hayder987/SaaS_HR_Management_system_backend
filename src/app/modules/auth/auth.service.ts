@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import ejs from "ejs";
 import {
   IForgotPassword,
+  ILoginUser,
   IRegisterUser,
   IResetPassword,
   IVerifyEmailPayload,
@@ -14,6 +15,8 @@ import path from "path";
 import { transporter } from "../../lib/nodemailer";
 import config from "../../config";
 import { redisClient } from "../../lib/redis";
+import { jwtUtils } from "../../utils/jwt";
+import { SignOptions } from "jsonwebtoken";
 
 // resister user
 const registerUser = async (payload: IRegisterUser) => {
@@ -70,6 +73,147 @@ const registerUser = async (payload: IRegisterUser) => {
       html,
     });
   }
+};
+
+// login platformUser superAdmin
+const loginUser = async (payload: ILoginUser) => {
+  const { password } = payload;
+  const email = payload.email.trim().toLowerCase();
+
+  const user = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+
+  if (!user) {
+    throw new Error("Invalid email or password");
+  }
+
+  if (!user.isEmailVerified) {
+    throw new Error("Email not verified. Please verify your email");
+  }
+
+  if (user.status === UserStatus.SUSPENDED) {
+    throw new Error("User is suspended");
+  }
+
+  if (user.status === UserStatus.DELETED) {
+    throw new Error("User is deleted");
+  }
+
+  if (!user.password) {
+    throw new Error("Password login is not available for this account");
+  }
+
+  const isPasswordMatched = await bcrypt.compare(password, user.password);
+
+  if (!isPasswordMatched) {
+    throw new Error("Invalid email or password");
+  }
+
+  if (user.role === UserRole.SUPER_ADMIN) {
+    const jwtPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const accessToken = jwtUtils.createToken(
+      jwtPayload,
+      config.jwt_access_secret,
+      config.jwt_access_expires_in as SignOptions,
+    );
+
+    const refreshToken = jwtUtils.createToken(
+      jwtPayload,
+      config.jwt_refresh_secret,
+      config.jwt_refresh_expires_in as SignOptions,
+    );
+
+    return {
+      accessToken,
+      refreshToken,
+
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+
+      access: {
+        type: "PLATFORM",
+        organizationAccess: true,
+      },
+
+      memberships: [],
+    };
+  }
+
+  // PLATFORM USER
+  const memberships = await prisma.membership.findMany({
+    where: {
+      userId: user.id,
+      status: "ACTIVE",
+    },
+
+    select: {
+      id: true,
+      organizationId: true,
+      role: true,
+      status: true,
+
+      organization: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  const jwtPayload = {
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+  };
+
+  const accessToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions,
+  );
+
+  const refreshToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_refresh_secret,
+    config.jwt_refresh_expires_in as SignOptions,
+  );
+
+  //Return Login Result
+  return {
+    accessToken,
+    refreshToken,
+
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isPremiumOwner: user.isPremiumOwner,
+      organizationOwner: user.organizationOwner,
+      planName: user.planeName,
+    },
+
+    access: {
+      type: memberships.length > 0 ? "ORGANIZATION" : "PLATFORM",
+
+      organizationAccess: memberships.length > 0,
+    },
+
+    memberships,
+  };
 };
 
 // forgot password
@@ -313,12 +457,11 @@ const resendOtp = async (payload: any) => {
   });
 };
 
-
-
 export const authServices = {
   registerUser,
   forgotPassword,
   resetPassword,
   verifyEmail,
   resendOtp,
+  loginUser,
 };

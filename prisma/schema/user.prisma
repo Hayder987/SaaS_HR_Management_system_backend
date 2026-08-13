@@ -2,13 +2,15 @@ model User {
   id                String     @id @default(uuid())
   name              String
   email             String     @unique
-  password          String?
+  password          String
+  avatarImg         String?
   role              UserRole   @default(PLATFORM_USER)
   isEmailVerified   Boolean    @default(false)
   status            UserStatus @default(ACTIVE)
   isPremiumOwner    Boolean    @default(false)
   organizationOwner Boolean    @default(false)
-  planeName         PlanName   @default(FREE)
+  planeName         PlanName   @default(DEFAULT)
+  
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

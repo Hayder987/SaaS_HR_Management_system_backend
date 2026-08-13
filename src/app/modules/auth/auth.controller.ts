@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import { authServices } from "./auth.service";
+import config from "../../config";
 
 // register user
 const registerUser = catchAsync(async (req: Request, res: Response) => {
@@ -15,6 +16,50 @@ const registerUser = catchAsync(async (req: Request, res: Response) => {
     success: true,
     message: "User registered successfully & Email Verify OTP send To Your Mail",
     data: null,
+  });
+});
+
+// login User
+const loginUser = catchAsync(async (req: Request, res: Response) => {
+  const payload = req.body;
+
+  const result = await authServices.loginUser(payload);
+
+  const {
+    accessToken,
+    refreshToken,
+    user,
+    access,
+    memberships,
+  } = result;
+
+  const isProduction = config.node_env === "production";
+
+  res.cookie("accessToken", accessToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 1000 * 60 * 60 * 24 * 3, // 3 days
+  });
+
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 1000 * 60 * 60 * 24 * 15, // 15 days
+  });
+
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User logged in successfully",
+    data: {
+      user,
+      access,
+      memberships,
+    },
   });
 });
 
@@ -76,6 +121,7 @@ const resendOtp = catchAsync(async (req: Request, res: Response) => {
 
 export const authController = {
   registerUser,
+  loginUser,
   forgotPassword,
   resetPassword,
   verifyEmail,

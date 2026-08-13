@@ -35,7 +35,7 @@ enum EmploymentStatus {
 }
 
 enum PlanName {
-  FREE
+  DEFAULT
   BASIC
   GOLD
   DIAMOND
