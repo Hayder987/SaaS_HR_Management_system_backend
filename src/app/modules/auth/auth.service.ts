@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma";
+import ejs from "ejs";
 import {
   IForgotPassword,
   IRegisterUser,
@@ -7,7 +8,10 @@ import {
 } from "./auth.interface";
 import { UserRole, UserStatus } from "../../../generated/prisma/enums";
 import crypto from "crypto";
-import { redisClient } from "../../lib/redis";
+import { generateOtp } from "../../utils/createOtp";
+import path from "path";
+import { transporter } from "../../lib/nodemailer";
+import config from "../../config";
 
 // resister user
 const registerUser = async (payload: IRegisterUser) => {
@@ -64,22 +68,29 @@ const forgotPassword = async (payload: IForgotPassword) => {
   }
 
   const otp = crypto.randomInt(100000, 1000000).toString();
-
   const key = `forgot-password-otp:${isUserExist.email}`;
 
-  const expirationSeconds = 5 * 60;
+  await generateOtp(key, otp);
 
-  await redisClient.set(key, otp, {
-    expiration: {
-      type: "EX",
-      value: expirationSeconds,
-    },
+  const templatePath = path.join(
+    process.cwd(),
+    "src/app/templates/forgot-password.ejs",
+  );
+
+  const templateData = {
+    name: isUserExist.name,
+    otp,
+    expirationMinutes: 5,
+  };
+
+  const html = await ejs.renderFile(templatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: isUserExist.email,
+    subject: "Forgot Password",
+    html,
   });
-
-  
-
-
-
 };
 
 // reset password
