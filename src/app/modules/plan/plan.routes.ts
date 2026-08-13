@@ -12,6 +12,6 @@ router.post(
   planController.createPlan,
 );
 
-router.get("/", )
+router.get("/", planController.getAllPlan)
 
 export const planRoutes = router;

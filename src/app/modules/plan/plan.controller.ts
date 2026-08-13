@@ -19,8 +19,21 @@ const createPlan = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get all plan
+const getAllPlan = catchAsync(async (req: Request, res: Response) => {
+  const result = await planServices.getAllPlan();
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: `All Plan Retrieve SuccessFully!`,
+    data: result,
+  });
+});
+
 
 // export plan controller
 export const planController = {
- createPlan
+ createPlan,
+ getAllPlan
 }
