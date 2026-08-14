@@ -10,69 +10,176 @@ import {
 } from "./auth.interface";
 import { UserRole, UserStatus } from "../../../generated/prisma/enums";
 import crypto from "crypto";
-import { generateOtp } from "../../utils/createOtp";
 import path from "path";
 import { transporter } from "../../lib/nodemailer";
 import config from "../../config";
 import { redisClient } from "../../lib/redis";
 import { jwtUtils } from "../../utils/jwt";
 import { SignOptions } from "jsonwebtoken";
+import { createOtp, passwordHash, setRedisOtp } from "../../utils/common.util";
 
 // resister user
 const registerUser = async (payload: IRegisterUser) => {
-  const { name, password } = payload;
+  const name = payload.name.trim();
   const email = payload.email.trim().toLowerCase();
+  const password = payload.password;
 
-  const isUserExists = await prisma.user.findUnique({
+  const existingUser = await prisma.user.findUnique({
     where: { email },
+    select: {
+      id: true,
+      isEmailVerified: true,
+      email: true,
+    },
   });
 
-  if (isUserExists) {
+  if (existingUser) {
     throw new Error("User with this email already exists");
   }
 
-  const hashedPassword = await bcrypt.hash(password, 8);
+  const hashedPassword = await passwordHash(password);
 
-  const createUser = await prisma.user.create({
-    data: {
+  const otp = createOtp();
+  const email_redisKey = `user_registration:${email}`;
+  const verify_redisKey = `verify_otp:${email}`;
+  const expirationSeconds = 5 * 60;
+
+  await redisClient.set(
+    email_redisKey,
+    JSON.stringify({
       name,
       email,
-      password: hashedPassword,
-      role: UserRole.PLATFORM_USER,
-      status: UserStatus.ACTIVE,
-      isEmailVerified: false,
+      hashedPassword,
+      otp,
+    }),
+    {
+      expiration: {
+        type: "EX",
+        value: expirationSeconds,
+      },
     },
-    omit: {
-      password: true,
+  );
+
+  await setRedisOtp(verify_redisKey, otp);
+
+  const templatePath = path.join(
+    process.cwd(),
+    "src/app/templates/verify-email.ejs",
+  );
+
+  const templateData = {
+    name,
+    otp,
+    expirationMinutes: 5,
+  };
+
+  const html = await ejs.renderFile(templatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: email,
+    subject: "verify Email ",
+    html,
+  });
+};
+
+// verify email
+const verifyEmail = async (payload: IVerifyEmailPayload) => {
+  const otp = payload?.otp;
+  const email = payload.email.trim().toLowerCase();
+
+  const verify_redisKey = `verify_otp:${email}`;
+
+  const redisOtp = await redisClient.get(verify_redisKey);
+
+  if (!redisOtp) {
+    throw new Error("Invalid OTP Or Expired");
+  }
+
+  if (redisOtp !== otp) {
+    throw new Error("OTP Does Not Match");
+  }
+
+  await redisClient.del(verify_redisKey)
+
+  const email_redisKey = `user_registration:${email}`;
+  const redisStoredData = await redisClient.get(email_redisKey);
+
+  if (!redisStoredData) {
+    throw new Error(
+      "Verification code expired or registration session not found",
+    );
+  }
+
+  const registrationData = JSON.parse(redisStoredData);
+
+  const isUserExist = await prisma.user.findUnique({
+    where: {
+      email,
     },
   });
 
-  if (!createUser.isEmailVerified) {
-    const otp = crypto.randomInt(100000, 1000000).toString();
-    const key = `email-verification:${createUser.email}`;
+  if (isUserExist) {
+    if (isUserExist.isEmailVerified) {
+      throw new Error("Email is already verified");
+    }
 
-    await generateOtp(key, otp);
-
-    const templatePath = path.join(
-      process.cwd(),
-      "src/app/templates/verify-email.ejs",
-    );
-
-    const templateData = {
-      name: createUser.name,
-      otp,
-      expirationMinutes: 5,
-    };
-
-    const html = await ejs.renderFile(templatePath, templateData);
-
-    await transporter.sendMail({
-      from: config.email_sender,
-      to: createUser.email,
-      subject: "verify Email",
-      html,
-    });
+    if (isUserExist.status !== UserStatus.ACTIVE) {
+      throw new Error("User Maybe Suspend Or Deleted");
+    }
+    if (!isUserExist.password) {
+      throw new Error("User Google Authenticated");
+    }
   }
+
+  const user = await prisma.user.create({
+    data: {
+      name: registrationData.name,
+      email: registrationData.email,
+      passwordHash: registrationData.passwordHash,
+
+      authMethod: "CREDENTIALS",
+      role: "PLATFORM_USER",
+      status: "ACTIVE",
+
+      isEmailVerified: true,
+      emailVerifiedAt: new Date(),
+    },
+
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      authMethod: true,
+      role: true,
+      status: true,
+      isEmailVerified: true,
+      emailVerifiedAt: true,
+      createdAt: true,
+    },
+  });
+
+  // Delete OTP/session from Redis
+  await redisClient.del(email_redisKey);
+
+
+  const templatePath = path.join(
+    process.cwd(),
+    "src/app/templates/email-verified-success.ejs",
+  );
+
+  const templateData = {
+    name: user.name,
+  };
+
+  const html = await ejs.renderFile(templatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: user.email,
+    subject: "Email Verified SuccessFully",
+    html,
+  });
 };
 
 // login platformUser superAdmin
@@ -201,9 +308,6 @@ const loginUser = async (payload: ILoginUser) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      isPremiumOwner: user.isPremiumOwner,
-      organizationOwner: user.organizationOwner,
-      planName: user.planeName,
     },
 
     access: {
@@ -328,69 +432,6 @@ const resetPassword = async (payload: IResetPassword) => {
     from: config.email_sender,
     to: isUserExist.email,
     subject: "Password Changed",
-    html,
-  });
-};
-
-// verify email
-const verifyEmail = async (payload: IVerifyEmailPayload) => {
-  const { email, otp } = payload;
-
-  const isUserExist = await prisma.user.findUnique({
-    where: {
-      email,
-    },
-  });
-
-  if (!isUserExist) {
-    throw new Error("User Does Not Exist!");
-  }
-
-  if (isUserExist.isEmailVerified) {
-    throw new Error("Email is already verified");
-  }
-
-  if (isUserExist.status !== UserStatus.ACTIVE) {
-    throw new Error("User Maybe Suspend Or Blocked");
-  }
-
-  const key = `email-verification:${isUserExist.email}`;
-  const redisOtp = await redisClient.get(key);
-
-  if (!redisOtp) {
-    throw new Error("Invalid OTP");
-  }
-
-  if (redisOtp !== otp) {
-    throw new Error("OTP Does Not Match");
-  }
-
-  await prisma.user.update({
-    where: {
-      email: isUserExist.email,
-    },
-    data: {
-      isEmailVerified: true,
-    },
-  });
-
-  await redisClient.del([key]);
-
-  const templatePath = path.join(
-    process.cwd(),
-    "src/app/templates/email-verified-success.ejs",
-  );
-
-  const templateData = {
-    name: isUserExist.name,
-  };
-
-  const html = await ejs.renderFile(templatePath, templateData);
-
-  await transporter.sendMail({
-    from: config.email_sender,
-    to: isUserExist.email,
-    subject: "Email Verified SuccessFully",
     html,
   });
 };

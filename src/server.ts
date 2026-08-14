@@ -20,7 +20,7 @@ const main = async () => {
     console.log("Nodemailer Connected Successfully.");
 
     // initial create superAdmin,
-    // await seedSuperAdmin();
+    await seedSuperAdmin();
 
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
