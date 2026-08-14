@@ -9,10 +9,22 @@ enum UserStatus {
   DELETED
 }
 
+enum AuthMethod {
+  CREDENTIALS
+  GOOGLE
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
 enum OrgRole {
   OWNER
   ADMIN
   HR
+  MANAGER
   EMPLOYEE
 }
 
@@ -23,11 +35,6 @@ enum MembershipStatus {
   REVOKED
 }
 
-enum OrganizationStatus {
-  ACTIVE
-  SUSPENDED
-}
-
 enum EmploymentStatus {
   ACTIVE
   ON_LEAVE
@@ -35,11 +42,14 @@ enum EmploymentStatus {
 }
 
 enum PlanName {
-  DEFAULT
   BASIC
-  GOLD
-  DIAMOND
-  PLATINUM
+  BUSINESS
+  ENTERPRISE
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
 }
 
 enum SubscriptionStatus {
@@ -48,6 +58,7 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   EXPIRED
+  INCOMPLETE
 }
 
 enum PaymentStatus {
@@ -55,6 +66,13 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+  CANCELED
+}
+
+enum PaymentType {
+  SUBSCRIPTION
+  ONE_TIME
+  REFUND
 }
 
 enum LeaveStatus {
@@ -62,4 +80,67 @@ enum LeaveStatus {
   APPROVED
   REJECTED
   CANCELED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+  HOLIDAY
+  WEEKEND
+}
+
+enum NotificationType {
+  LEAVE_REQUESTED
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  BIRTHDAY
+  WORK_ANNIVERSARY
+  PROBATION_REMINDER
+  CONTRACT_EXPIRY
+  ATTENDANCE_SUMMARY
+  ONBOARDING
+  SYSTEM
+  SECURITY
+  BILLING
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum DocumentStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum GoogleIntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  EXPIRED
+  ERROR
+}
+
+enum AutomationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  SKIPPED
 }

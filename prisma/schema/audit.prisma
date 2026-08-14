@@ -1,0 +1,54 @@
+model AutomationLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  organizationId String @db.Uuid
+
+  type        String
+  referenceId String?
+
+  status AutomationStatus @default(PENDING)
+
+  attempts Int @default(0)
+
+  executedAt DateTime?
+
+  errorMessage String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type, referenceId])
+  @@index([status, createdAt])
+  @@map("automationLog")
+}
+
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  organizationId String? @db.Uuid
+  userId         String? @db.Uuid
+
+  action   String
+  entity   String
+  entityId String?
+
+  metadata Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+  @@map("auditLog")
+}

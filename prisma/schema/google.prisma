@@ -1,0 +1,47 @@
+model GoogleIntegration {
+  id             String                  @id @default(uuid()) @db.Uuid
+  organizationId String                  @unique @db.Uuid
+  googleEmail    String?
+  accessToken    String?
+  refreshToken   String?
+  expiresAt      DateTime?
+  status         GoogleIntegrationStatus @default(CONNECTED)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calendarEvents GoogleCalendarEvent[]
+  driveFiles     GoogleDriveFile[]
+
+  @@map("google_integrations")
+}
+
+model GoogleCalendarEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  integrationId  String   @db.Uuid
+  leaveRequestId String?  @db.Uuid
+  googleEventId  String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  integration GoogleIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, googleEventId])
+  @@map("google_calendar_events")
+}
+
+model GoogleDriveFile {
+  id             String   @id @default(uuid()) @db.Uuid
+  integrationId  String   @db.Uuid
+  employeeId     String?
+  documentId     String?
+  googleFileId   String
+  googleFolderId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  integration GoogleIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, googleFileId])
+  @@map("google_drive_files")
+}

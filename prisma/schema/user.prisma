@@ -1,26 +1,48 @@
 model User {
-  id                String     @id @default(uuid())
-  name              String
-  email             String     @unique
-  password          String
-  avatarImg         String?
-  role              UserRole   @default(PLATFORM_USER)
-  isEmailVerified   Boolean    @default(false)
-  status            UserStatus @default(ACTIVE)
-  isPremiumOwner    Boolean    @default(false)
-  organizationOwner Boolean    @default(false)
-  planeName         PlanName   @default(DEFAULT)
-  
+  id String @id @default(uuid()) @db.Uuid
+
+  name String
+
+  email String @unique
+
+  password String?
+
+  ImageUrl String?
+
+  authMethod AuthMethod @default(CREDENTIALS)
+
+  role UserRole @default(PLATFORM_USER)
+
+  status UserStatus @default(ACTIVE)
+
+  isEmailVerified Boolean @default(false)
+
+  emailVerifiedAt DateTime?
+
+  lastLoginAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships    Membership[]
-  employments    Employee[]
-  payments       Payment[]
-  reviewedLeaves LeaveRequest[] @relation("LeaveReviewer")
-  auditLogs      AuditLog[]
+  memberships Membership[]
 
-  @@index([email, status])
+  ownedOrganizations Organization[]
+
+  employees Employee[]
+
+  leaveReviews EmployeeLeaveRequest[] @relation("LeaveReviewer")
+
+  leaveApprovals LeaveApproval[] @relation("LeaveApprover")
+
+  notifications Notification[]
+
+  auditLogs AuditLog[]
+
+  payments Payment[]
+
+  @@index([email])
+  @@index([status])
+  @@index([role])
+  @@index([authMethod])
   @@map("users")
 }

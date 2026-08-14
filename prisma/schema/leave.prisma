@@ -1,0 +1,85 @@
+model LeaveType {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  description    String?
+  annualLimit    Decimal? @db.Decimal(5, 2)
+  isPaid         Boolean  @default(true)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization  Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leaveRequests EmployeeLeaveRequest[]
+  balances      LeaveBalance[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("leave_types")
+}
+
+model LeaveBalance {
+  id          String   @id @default(uuid()) @db.Uuid
+  employeeId  String   @db.Uuid
+  leaveTypeId String   @db.Uuid
+  year        Int
+  allocated   Decimal  @db.Decimal(6, 2)
+  used        Decimal  @default(0) @db.Decimal(6, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([employeeId, year])
+  @@map("leave_balances")
+}
+
+model EmployeeLeaveRequest {
+  id               String      @id @default(uuid()) @db.Uuid
+  organizationId   String      @db.Uuid
+  employeeId       String      @db.Uuid
+  leaveTypeId      String      @db.Uuid
+  startDate        DateTime
+  endDate          DateTime
+  totalDays        Decimal     @db.Decimal(5, 2)
+  reason           String?
+  status           LeaveStatus @default(PENDING)
+  reviewedByUserId String?     @db.Uuid
+  reviewedAt       DateTime?
+  reviewComment    String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType       @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  reviewedBy   User?           @relation("LeaveReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  approvals    LeaveApproval[]
+
+  @@index([organizationId, employeeId, status])
+  @@index([organizationId, status])
+  @@index([employeeId, startDate, endDate])
+  @@index([reviewedByUserId])
+  @@map("employee_leave_requests")
+}
+
+model LeaveApproval {
+  id             String         @id @default(uuid()) @db.Uuid
+  leaveRequestId String         @db.Uuid
+  approverUserId String         @db.Uuid
+  level          Int
+  status         ApprovalStatus @default(PENDING)
+  comment        String?
+  actedAt        DateTime?
+  createdAt      DateTime       @default(now())
+
+  leaveRequest EmployeeLeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  approver     User                 @relation("LeaveApprover", fields: [approverUserId], references: [id], onDelete: Restrict)
+
+  @@unique([leaveRequestId, level])
+  @@index([leaveRequestId, status])
+  @@index([approverUserId, status])
+  @@map("leave_approvals")
+}

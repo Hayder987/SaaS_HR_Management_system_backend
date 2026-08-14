@@ -1,0 +1,128 @@
+model WorkLocation {
+  id String @id @default(uuid()) @db.Uuid
+
+  organizationId String @db.Uuid
+
+  name    String
+  address String?
+
+  latitude  Decimal @db.Decimal(10, 7)
+  longitude Decimal @db.Decimal(10, 7)
+
+  radiusMeters Int @default(100)
+
+  isPrimary Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  employees EmployeeWorkLocation[]
+
+  attendances Attendance[]
+
+  @@index([organizationId, isActive])
+  @@map("workLocations")
+}
+
+model EmployeeWorkLocation {
+  id String @id @default(uuid()) @db.Uuid
+
+  employeeId     String @db.Uuid
+  workLocationId String @db.Uuid
+
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  workLocation WorkLocation @relation(fields: [workLocationId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, effectiveFrom])
+  @@index([workLocationId])
+  @@map("employeeWorkLocations")
+}
+
+model Shift {
+  id String @id @default(uuid()) @db.Uuid
+
+  organizationId String @db.Uuid
+
+  name String
+
+  startTime String
+  endTime   String
+
+  graceMinutes Int @default(10)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  employees EmployeeShift[]
+
+  @@unique([organizationId, name])
+  @@map("shift")
+}
+
+model EmployeeShift {
+  id String @id @default(uuid()) @db.Uuid
+
+  employeeId String @db.Uuid
+  shiftId    String @db.Uuid
+
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, effectiveFrom])
+  @@map("employeeShift")
+}
+
+model Attendance {
+  id String @id @default(uuid()) @db.Uuid
+
+  employeeId     String  @db.Uuid
+  workLocationId String? @db.Uuid
+
+  date DateTime
+
+  checkIn  DateTime?
+  checkOut DateTime?
+
+  checkInLatitude  Decimal? @db.Decimal(10, 7)
+  checkInLongitude Decimal? @db.Decimal(10, 7)
+  checkInAccuracy  Float?
+  checkInDistance  Int?
+
+  checkOutLatitude  Decimal? @db.Decimal(10, 7)
+  checkOutLongitude Decimal? @db.Decimal(10, 7)
+  checkOutAccuracy  Float?
+  checkOutDistance  Int?
+
+  lateMinutes       Int @default(0)
+  earlyLeaveMinutes Int @default(0)
+  overtimeMinutes   Int @default(0)
+
+  status AttendanceStatus @default(PRESENT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  workLocation WorkLocation? @relation(fields: [workLocationId], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, date])
+  @@index([employeeId, date])
+  @@index([workLocationId, date])
+  @@map("attendance")
+}
