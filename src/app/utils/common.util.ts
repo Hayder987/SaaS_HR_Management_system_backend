@@ -10,8 +10,9 @@ export const passwordHash = async (password: string) => {
 
 export const createOtp = () =>{
   return crypto.randomInt(100000, 1000000).toString(); 
-}
+};
 
+// set otp on redis cloud
 export const setRedisOtp = async (key: string, otp:string) => {
   const expirationSeconds = 5 * 60;
 

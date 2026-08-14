@@ -34,6 +34,45 @@ const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// google login
+const googleLogin = catchAsync(async (req: Request, res: Response) => {
+  if (req.headers["x-requested-with"] !== "XMLHttpRequest") {
+    throw new Error("Invalid Google Login Request");
+  }
+
+  const payload = req.body;
+
+  const { accessToken, refreshToken, user } =
+    await authServices.googleLogin(payload);
+
+  const isProduction = config.node_env === "production";
+
+  res.cookie("accessToken", accessToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 1000 * 60 * 60 * 24 * 3, // 3 days
+  });
+
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 1000 * 60 * 60 * 24 * 15, // 15 days
+  });
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Google login successful",
+    data: {
+      accessToken,
+      refreshToken,
+      user,
+    },
+  });
+});
+
 // login User
 const loginUser = catchAsync(async (req: Request, res: Response) => {
   const payload = req.body;
@@ -119,4 +158,5 @@ export const authController = {
   resetPassword,
   verifyEmail,
   resendOtp,
+  googleLogin
 };

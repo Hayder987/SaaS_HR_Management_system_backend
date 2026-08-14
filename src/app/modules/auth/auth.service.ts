@@ -8,15 +8,30 @@ import {
   IResetPassword,
   IVerifyEmailPayload,
 } from "./auth.interface";
-import { UserRole, UserStatus } from "../../../generated/prisma/enums";
-import crypto from "crypto";
+import {
+  AuthMethod,
+  UserRole,
+  UserStatus,
+} from "../../../generated/prisma/enums";
 import path from "path";
 import { transporter } from "../../lib/nodemailer";
 import config from "../../config";
 import { redisClient } from "../../lib/redis";
 import { jwtUtils } from "../../utils/jwt";
-import { SignOptions } from "jsonwebtoken";
+import { JwtPayload, SignOptions } from "jsonwebtoken";
 import { createOtp, passwordHash, setRedisOtp } from "../../utils/common.util";
+import { OAuth2Client, TokenPayload } from "google-auth-library";
+
+const googleClient = new OAuth2Client(
+  config.google_client_id,
+  config.google_client_secret,
+  config.google_redirect_uri,
+);
+
+interface IGoogleLoginPayload {
+  code: string;
+}
+
 
 // resister user
 const registerUser = async (payload: IRegisterUser) => {
@@ -100,7 +115,7 @@ const verifyEmail = async (payload: IVerifyEmailPayload) => {
     throw new Error("OTP Does Not Match");
   }
 
-  await redisClient.del(verify_redisKey)
+  await redisClient.del(verify_redisKey);
 
   const email_redisKey = `user_registration:${email}`;
   const redisStoredData = await redisClient.get(email_redisKey);
@@ -124,23 +139,34 @@ const verifyEmail = async (payload: IVerifyEmailPayload) => {
       throw new Error("Email is already verified");
     }
 
-    if (isUserExist.status !== UserStatus.ACTIVE) {
-      throw new Error("User Maybe Suspend Or Deleted");
+    if (isUserExist.status === UserStatus.SUSPENDED) {
+      throw new Error("You Are SUSPEND! ");
     }
+
+    if (isUserExist.status === UserStatus.DELETED) {
+      throw new Error("You Are DELETED! ");
+    }
+
     if (!isUserExist.password) {
       throw new Error("User Google Authenticated");
     }
   }
 
+  const onboardingDeadline = new Date();
+
+  onboardingDeadline.setDate(
+    onboardingDeadline.getDate() + 3,
+  );
+
   const user = await prisma.user.create({
     data: {
       name: registrationData.name,
       email: registrationData.email,
-      passwordHash: registrationData.passwordHash,
-
-      authMethod: "CREDENTIALS",
-      role: "PLATFORM_USER",
-      status: "ACTIVE",
+      password: registrationData.passwordHash,
+      onboardingDeadline : onboardingDeadline,
+      authMethod: AuthMethod.CREDENTIALS,
+      role: UserRole.PLATFORM_USER,
+      status: UserStatus.ACTIVE,
 
       isEmailVerified: true,
       emailVerifiedAt: new Date(),
@@ -162,7 +188,6 @@ const verifyEmail = async (payload: IVerifyEmailPayload) => {
   // Delete OTP/session from Redis
   await redisClient.del(email_redisKey);
 
-
   const templatePath = path.join(
     process.cwd(),
     "src/app/templates/email-verified-success.ejs",
@@ -182,9 +207,10 @@ const verifyEmail = async (payload: IVerifyEmailPayload) => {
   });
 };
 
-// login platformUser superAdmin
+// login platformUser superAdmin by credential
 const loginUser = async (payload: ILoginUser) => {
   const { password } = payload;
+
   const email = payload.email.trim().toLowerCase();
 
   const user = await prisma.user.findUnique({
@@ -194,11 +220,7 @@ const loginUser = async (payload: ILoginUser) => {
   });
 
   if (!user) {
-    throw new Error("Invalid email or password");
-  }
-
-  if (!user.isEmailVerified) {
-    throw new Error("Email not verified. Please verify your email");
+    throw new Error("User Not Found ! Please Register");
   }
 
   if (user.status === UserStatus.SUSPENDED) {
@@ -207,6 +229,16 @@ const loginUser = async (payload: ILoginUser) => {
 
   if (user.status === UserStatus.DELETED) {
     throw new Error("User is deleted");
+  }
+
+  if (!user.isEmailVerified) {
+    throw new Error("Email not verified. Please verify your email");
+  }
+
+  if (user.authMethod !== AuthMethod.CREDENTIALS) {
+    throw new Error(
+      "Password login is not available for this account. Please use Google login",
+    );
   }
 
   if (!user.password) {
@@ -218,6 +250,17 @@ const loginUser = async (payload: ILoginUser) => {
   if (!isPasswordMatched) {
     throw new Error("Invalid email or password");
   }
+
+  const lastLoginAt = new Date();
+
+  await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data: {
+      lastLoginAt,
+    },
+  });
 
   if (user.role === UserRole.SUPER_ADMIN) {
     const jwtPayload = {
@@ -247,6 +290,10 @@ const loginUser = async (payload: ILoginUser) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        authMethod: user.authMethod,
+        isEmailVerified: user.isEmailVerified,
+        emailVerifiedAt: user.emailVerifiedAt,
+        lastLoginAt,
       },
 
       access: {
@@ -259,10 +306,15 @@ const loginUser = async (payload: ILoginUser) => {
   }
 
   // PLATFORM USER
+
   const memberships = await prisma.membership.findMany({
     where: {
       userId: user.id,
       status: "ACTIVE",
+
+      organization: {
+        status: "ACTIVE",
+      },
     },
 
     select: {
@@ -275,8 +327,18 @@ const loginUser = async (payload: ILoginUser) => {
         select: {
           id: true,
           name: true,
+          slug: true,
+          logo: true,
+          locationName: true,
+          timezone: true,
+          currency: true,
+          status: true,
         },
       },
+    },
+
+    orderBy: {
+      createdAt: "asc",
     },
   });
 
@@ -298,7 +360,6 @@ const loginUser = async (payload: ILoginUser) => {
     config.jwt_refresh_expires_in as SignOptions,
   );
 
-  //Return Login Result
   return {
     accessToken,
     refreshToken,
@@ -308,6 +369,10 @@ const loginUser = async (payload: ILoginUser) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      authMethod: user.authMethod,
+      isEmailVerified: user.isEmailVerified,
+      emailVerifiedAt: user.emailVerifiedAt,
+      lastLoginAt,
     },
 
     access: {
@@ -342,10 +407,10 @@ const forgotPassword = async (payload: IForgotPassword) => {
     throw new Error("User Not Verified");
   }
 
-  const otp = crypto.randomInt(100000, 1000000).toString();
+  const otp = createOtp();
   const key = `forgot-password-otp:${isUserExist.email}`;
 
-  await generateOtp(key, otp);
+  await setRedisOtp(key, otp);
 
   const templatePath = path.join(
     process.cwd(),
@@ -462,7 +527,7 @@ const resendOtp = async (payload: any) => {
     throw new Error("Email Not Verified Verified");
   }
 
-  const otp = crypto.randomInt(100000, 1000000).toString();
+  const otp = createOtp();
 
   const emailKey = `email-verification:${isUserExist.email}`;
   const forgotKey = `forgot-password-otp:${isUserExist.email}`;
@@ -498,6 +563,192 @@ const resendOtp = async (payload: any) => {
   });
 };
 
+
+// google login
+const googleLogin = async (payload: IGoogleLoginPayload) => {
+
+  const { tokens } = await googleClient.getToken({
+    code: payload.code,
+    redirect_uri: config.google_redirect_uri,
+  });
+
+  if (!tokens.id_token) {
+    throw new Error("Google ID Token Not Found");
+  }
+
+  let googleIdTokenPayload: TokenPayload | undefined;
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: config.google_client_id,
+    });
+
+    googleIdTokenPayload = ticket.getPayload();
+  } catch (error) {
+    console.log("Google ID Token Verification Failed", error);
+
+    throw new Error("Invalid Or Expired Google ID Token");
+  }
+
+  if (!googleIdTokenPayload) {
+    throw new Error("Invalid Or Expired Google ID Token");
+  }
+
+  if (!googleIdTokenPayload.email) {
+    throw new Error("Google Email Not Found");
+  }
+
+  if (googleIdTokenPayload.email_verified !== true) {
+    throw new Error("Google Email Is Not Verified");
+  }
+
+  if (!googleIdTokenPayload.name) {
+    throw new Error("Google User Name Not Found");
+  }
+
+  const email = googleIdTokenPayload.email
+  .trim()
+  .toLowerCase();
+
+  let user = await prisma.user.findUnique({
+    where: {
+      email
+    },
+  });
+
+  if(user?.authMethod === AuthMethod.CREDENTIALS && user?.password){
+   throw new Error("An account already exists with this email. Please login using your email and password.")
+  }
+
+  const onboardingDeadline = new Date();
+
+  onboardingDeadline.setDate(
+    onboardingDeadline.getDate() + 3,
+  );
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        name: googleIdTokenPayload.name,
+        email: googleIdTokenPayload.email,
+        password: null,
+        authMethod: AuthMethod.GOOGLE,
+        role: UserRole.PLATFORM_USER,
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+        emailVerifiedAt: new Date(),
+        onboardingDeadline: onboardingDeadline, 
+        lastLoginAt: new Date(),
+      },
+    });
+  }
+
+
+  if (user.status === UserStatus.SUSPENDED) {
+    throw new Error("User Is SUSPENDED");
+  }
+
+  if (user.status === UserStatus.DELETED) {
+    throw new Error("User Is DELETED");
+  }
+
+  user = await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+
+      data: {
+        name: user.name,
+        isEmailVerified: true,
+        emailVerifiedAt:
+        user.emailVerifiedAt ?? new Date(),
+
+        lastLoginAt: new Date(),
+
+      },
+    });
+
+  const memberships = await prisma.membership.findMany({
+    where: {
+      userId: user.id,
+      status: "ACTIVE",
+
+      organization: {
+        status: "ACTIVE",
+      },
+    },
+
+    select: {
+      id: true,
+      organizationId: true,
+      role: true,
+      status: true,
+
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          logo: true,
+          locationName: true,
+          timezone: true,
+          currency: true,
+          status: true,
+        },
+      },
+    },
+
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  const jwtPayload = {
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+  };
+
+  const accessToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions,
+  );
+
+  const refreshToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_refresh_secret,
+    config.jwt_refresh_expires_in as SignOptions,
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      authMethod: user.authMethod,
+      isEmailVerified: user.isEmailVerified,
+      emailVerifiedAt: user.emailVerifiedAt,
+      lastLoginAt : user.lastLoginAt,
+    },
+
+    access: {
+      type: memberships.length > 0 ? "ORGANIZATION" : "PLATFORM",
+
+      organizationAccess: memberships.length > 0,
+    },
+
+    memberships,
+  };
+};
+
+
+
 export const authServices = {
   registerUser,
   forgotPassword,
@@ -505,4 +756,6 @@ export const authServices = {
   verifyEmail,
   resendOtp,
   loginUser,
+  googleLogin
+
 };

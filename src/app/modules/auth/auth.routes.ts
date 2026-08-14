@@ -1,12 +1,15 @@
 import { Router } from "express";
+
 import { authController } from "./auth.controller";
-import { validateRequest } from "../../middleware/validateRequest";
 import { authValidation } from "./auth.validation";
+
+import { validateRequest } from "../../middleware/validateRequest";
 import { authRateLimiter } from "../../middleware/authRateLimiter";
 
 const router = Router();
 
-// register user
+
+// Register
 router.post(
   "/register",
   authRateLimiter,
@@ -14,10 +17,18 @@ router.post(
   authController.registerUser,
 );
 
-// login user superAdmin
-router.post("/login", authController.loginUser);
+// Login
+router.post(
+  "/login",
+  authController.loginUser,
+);
 
-// verify email
+
+// Google Login
+router.post("/google", authController.googleLogin);
+
+
+// Verify Email
 router.post(
   "/verify-email",
   authRateLimiter,
@@ -25,7 +36,15 @@ router.post(
   authController.verifyEmail,
 );
 
-// forgot password
+// Resend Verification OTP
+router.post(
+  "/resend-otp",
+  authRateLimiter,
+  validateRequest(authValidation.resendOtpZodSchema),
+  authController.resendOtp,
+);
+
+// Forgot Password
 router.post(
   "/forgot-password",
   authRateLimiter,
@@ -33,20 +52,12 @@ router.post(
   authController.forgotPassword,
 );
 
-//reset password
+// Reset Password
 router.post(
   "/reset-password",
   authRateLimiter,
   validateRequest(authValidation.ResetPasswordZodSchema),
   authController.resetPassword,
-);
-
-// resendOtp
-router.post(
-  "/resend-otp",
-  authRateLimiter,
-  validateRequest(authValidation.resendOtpZodSchema),
-  authController.resendOtp,
 );
 
 export const authRoutes = router;

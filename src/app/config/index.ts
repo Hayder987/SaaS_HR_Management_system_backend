@@ -21,14 +21,18 @@ export default {
   super_admin_email: process.env.SUPER_ADMIN_EMAIL!,
   super_admin_password: process.env.SUPER_ADMIN_PASSWORD!,
 
+  google_client_id: process.env.GOOGLE_CLIENT_ID!,
+  google_client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+  google_redirect_uri: process.env.GOOGLE_REDIRECT_URI!,
+
   redis_user: process.env.REDIS_USER!,
   redis_password: process.env.REDIS_PASSWORD!,
   redis_host: process.env.REDIS_HOST!,
   redis_port: process.env.REDIS_PORT!,
 
-  smtp_user : process.env.SMTP_USER!,
-	smtp_password : process.env.SMTP_PASSWORD!,
-  email_sender : process.env.EMAIL_SENDER!,
+  smtp_user: process.env.SMTP_USER!,
+  smtp_password: process.env.SMTP_PASSWORD!,
+  email_sender: process.env.EMAIL_SENDER!,
 
   stripe_secret_key: process.env.STRIPE_SECRET_KEY!,
 };
