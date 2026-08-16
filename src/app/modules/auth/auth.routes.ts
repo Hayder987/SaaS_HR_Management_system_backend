@@ -5,9 +5,10 @@ import { authValidation } from "./auth.validation";
 
 import { validateRequest } from "../../middleware/validateRequest";
 import { authRateLimiter } from "../../middleware/authRateLimiter";
+import { auth } from "../../middleware/auth";
+import { UserRole } from "../../../generated/prisma/enums";
 
 const router = Router();
-
 
 // Register
 router.post(
@@ -18,15 +19,10 @@ router.post(
 );
 
 // Login
-router.post(
-  "/login",
-  authController.loginUser,
-);
-
+router.post("/login", authController.loginUser);
 
 // Google Login
 router.post("/google", authController.googleLogin);
-
 
 // Verify Email
 router.post(
@@ -58,6 +54,13 @@ router.post(
   authRateLimiter,
   validateRequest(authValidation.ResetPasswordZodSchema),
   authController.resetPassword,
+);
+
+// get my profile
+router.get(
+  "/me",
+  auth(UserRole.PLATFORM_USER, UserRole.SUPER_ADMIN),
+  authController.getMyProfile,
 );
 
 export const authRoutes = router;

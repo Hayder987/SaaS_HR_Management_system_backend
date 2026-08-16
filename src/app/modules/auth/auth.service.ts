@@ -326,7 +326,6 @@ const loginUser = async (payload: ILoginUser) => {
           id: true,
           name: true,
           slug: true,
-          logo: true,
           locationName: true,
           timezone: true,
           currency: true,
@@ -341,9 +340,11 @@ const loginUser = async (payload: ILoginUser) => {
   });
 
   const jwtPayload = {
-    userId: user.id,
+    id:  user.id,
+    name : user.name,
     email: user.email,
     role: user.role,
+    isEmailVerified: user.isEmailVerified
   };
 
   const accessToken = jwtUtils.createToken(
@@ -683,7 +684,6 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
           id: true,
           name: true,
           slug: true,
-          logo: true,
           locationName: true,
           timezone: true,
           currency: true,
@@ -697,10 +697,12 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
     },
   });
 
-  const jwtPayload = {
-    userId: user.id,
+   const jwtPayload = {
+    id:  user.id,
+    name : user.name,
     email: user.email,
     role: user.role,
+    isEmailVerified: user.isEmailVerified
   };
 
   const accessToken = jwtUtils.createToken(
@@ -740,6 +742,11 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
   };
 };
 
+// get my profile
+const getMyProfile = async(userId:string)=>{
+  console.log(userId)
+}
+
 export const authServices = {
   registerUser,
   forgotPassword,
@@ -748,4 +755,5 @@ export const authServices = {
   resendOtp,
   loginUser,
   googleLogin,
+  getMyProfile
 };

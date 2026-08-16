@@ -151,6 +151,24 @@ const resendOtp = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get my user profile
+const getMyProfile = catchAsync(
+   async (req: Request, res: Response) => {
+
+    const userId = "";
+
+  const result = await authServices.getMyProfile(userId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: `Your Profile Retrieve Successfully`,
+    data: result,
+  });
+
+   }
+)
+
 export const authController = {
   registerUser,
   loginUser,
@@ -158,5 +176,6 @@ export const authController = {
   resetPassword,
   verifyEmail,
   resendOtp,
-  googleLogin
+  googleLogin,
+  getMyProfile
 };
