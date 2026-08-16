@@ -24,6 +24,9 @@ router.post("/login", authController.loginUser);
 // Google Login
 router.post("/google", authController.googleLogin);
 
+// refresh token
+router.post("/refresh-token", authController.refreshToken);
+
 // Verify Email
 router.post(
   "/verify-email",

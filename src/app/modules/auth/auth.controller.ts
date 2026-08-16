@@ -14,8 +14,7 @@ const registerUser = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message:
-      `You are Temporary registered & Email Verification OTP send To Your Email:${payload.email}`,
+    message: `You are Temporary registered & Email Verification OTP send To Your Email:${payload.email}`,
     data: null,
   });
 });
@@ -29,7 +28,8 @@ const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message: "Email Verified And Permanent Registered successfully And Send Success Mail",
+    message:
+      "Email Verified And Permanent Registered successfully And Send Success Mail",
     data: null,
   });
 });
@@ -109,6 +109,21 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// refresh token
+const refreshToken = catchAsync(async (req: Request, res: Response) => {
+  const refreshToken = req.cookies.refreshToken;
+
+  const { accessToken } = await authServices.refreshTokenToAccess(refreshToken);
+  
+   sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Access Token Generated Successfully!",
+      data: { accessToken },
+    });
+
+});
+
 // forgot password
 const forgotPassword = catchAsync(async (req: Request, res: Response) => {
   const payload = req.body;
@@ -152,12 +167,10 @@ const resendOtp = catchAsync(async (req: Request, res: Response) => {
 });
 
 // get my user profile
-const getMyProfile = catchAsync(
-   async (req: Request, res: Response) => {
+const getMyProfile = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id;
 
-    const userId = "";
-
-  const result = await authServices.getMyProfile(userId);
+  const result = await authServices.getMyProfile(userId as string);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -165,9 +178,7 @@ const getMyProfile = catchAsync(
     message: `Your Profile Retrieve Successfully`,
     data: result,
   });
-
-   }
-)
+});
 
 export const authController = {
   registerUser,
@@ -177,5 +188,6 @@ export const authController = {
   verifyEmail,
   resendOtp,
   googleLogin,
-  getMyProfile
+  getMyProfile,
+  refreshToken,
 };

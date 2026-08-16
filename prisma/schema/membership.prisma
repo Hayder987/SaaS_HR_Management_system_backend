@@ -2,7 +2,7 @@ model Membership {
   id             String           @id @default(uuid()) @db.Uuid
   organizationId String           @db.Uuid
   userId         String           @db.Uuid
-  role           OrgRole          @default(EMPLOYEE)
+  orgRole        OrgRole          @default(EMPLOYEE)
   status         MembershipStatus @default(ACTIVE)
   invitedAt      DateTime?
   joinedAt       DateTime?
@@ -13,7 +13,7 @@ model Membership {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId])
-  @@index([organizationId, role])
+  @@index([organizationId, orgRole])
   @@index([userId, status])
   @@map("memberships")
 }

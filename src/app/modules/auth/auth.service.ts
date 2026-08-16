@@ -263,9 +263,11 @@ const loginUser = async (payload: ILoginUser) => {
 
   if (user.role === UserRole.SUPER_ADMIN) {
     const jwtPayload = {
-      userId: user.id,
+      id: user.id,
+      name: user.name,
       email: user.email,
       role: user.role,
+      isEmailVerified: user.isEmailVerified,
     };
 
     const accessToken = jwtUtils.createToken(
@@ -340,11 +342,11 @@ const loginUser = async (payload: ILoginUser) => {
   });
 
   const jwtPayload = {
-    id:  user.id,
-    name : user.name,
+    id: user.id,
+    name: user.name,
     email: user.email,
     role: user.role,
-    isEmailVerified: user.isEmailVerified
+    isEmailVerified: user.isEmailVerified,
   };
 
   const accessToken = jwtUtils.createToken(
@@ -382,6 +384,46 @@ const loginUser = async (payload: ILoginUser) => {
 
     memberships,
   };
+};
+
+// refresh token to accessToken
+const refreshTokenToAccess = async (refreshToken: string) => {
+  if (!refreshToken) {
+    throw new Error("refreshToken Not Found");
+  }
+
+  const decodedRefreshToken = jwtUtils.verifyToken(
+    refreshToken,
+    config.jwt_refresh_secret,
+  );
+
+  if (!decodedRefreshToken.success) {
+    throw new Error("Invalid Refresh Token");
+  }
+
+  const { id } = decodedRefreshToken.data as JwtPayload;
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: {
+      id,
+    },
+  });
+
+  const jwtPayload = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    isEmailVerified: user.isEmailVerified,
+  };
+
+  const accessToken = jwtUtils.createToken(
+    jwtPayload,
+    config.jwt_access_secret,
+    config.jwt_access_expires_in as SignOptions,
+  );
+
+  return { accessToken };
 };
 
 // forgot password
@@ -618,7 +660,7 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
     );
   }
 
-   // time generate
+  // time generate
   const now = new Date();
   const suspensionWarningAt = new Date(now.getTime() + 48 * 60 * 60 * 1000);
   const onboardingDeadline = new Date(now.getTime() + 72 * 60 * 60 * 1000);
@@ -697,12 +739,12 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
     },
   });
 
-   const jwtPayload = {
-    id:  user.id,
-    name : user.name,
+  const jwtPayload = {
+    id: user.id,
+    name: user.name,
     email: user.email,
     role: user.role,
-    isEmailVerified: user.isEmailVerified
+    isEmailVerified: user.isEmailVerified,
   };
 
   const accessToken = jwtUtils.createToken(
@@ -743,9 +785,38 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
 };
 
 // get my profile
-const getMyProfile = async(userId:string)=>{
-  console.log(userId)
-}
+const getMyProfile = async (userId: string) => {
+  if (!userId) {
+    throw new Error("Authentication required. Please log in again.");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      imageUrl: true,
+      authMethod: true,
+      role: true,
+      status: true,
+      isEmailVerified: true,
+      emailVerifiedAt: true,
+      lastLoginAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  return user;
+};
 
 export const authServices = {
   registerUser,
@@ -755,5 +826,6 @@ export const authServices = {
   resendOtp,
   loginUser,
   googleLogin,
-  getMyProfile
+  getMyProfile,
+  refreshTokenToAccess,
 };
