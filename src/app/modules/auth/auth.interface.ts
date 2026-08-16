@@ -28,3 +28,9 @@ export interface IResendOtp {
   email : string,
   emailVerify: boolean
 }
+
+export interface IChangePassword {
+  currentPassword: string;
+  newPassword: string;
+  reEnterNewPassword : string
+}

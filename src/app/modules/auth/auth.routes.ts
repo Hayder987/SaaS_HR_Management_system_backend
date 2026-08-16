@@ -59,6 +59,14 @@ router.post(
   authController.resetPassword,
 );
 
+// change password
+router.patch(
+  "/change-password",
+  validateRequest(authValidation.changePasswordZodSchema),
+  auth(UserRole.PLATFORM_USER, UserRole.SUPER_ADMIN),
+  authController.changePassword,
+);
+
 // get my profile
 router.get(
   "/me",

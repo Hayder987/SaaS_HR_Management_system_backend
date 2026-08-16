@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma";
 import ejs from "ejs";
 import {
+  IChangePassword,
   IForgotPassword,
   ILoginUser,
   IRegisterUser,
@@ -530,6 +531,7 @@ const resetPassword = async (payload: IResetPassword) => {
 
   const templateData = {
     name: isUserExist.name,
+    info : false,
   };
 
   const html = await ejs.renderFile(templatePath, templateData);
@@ -784,6 +786,95 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
   };
 };
 
+const changePassword = async (payload: IChangePassword, userId: string) => {
+  if (!userId) {
+    throw new Error("Authentication required. Please log in again.");
+  }
+
+  const { currentPassword, newPassword, reEnterNewPassword } = payload;
+
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      password: true,
+      authMethod: true,
+      status: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  if (user.status !== "ACTIVE") {
+    throw new Error(
+      "Your account is not active. You cannot change your password.",
+    );
+  }
+
+  if (user.authMethod === AuthMethod.GOOGLE || !user.password) {
+    throw new Error(
+      "Password change is not available for Google-only accounts.",
+    );
+  }
+
+  const isCurrentPasswordValid = await bcrypt.compare(
+    currentPassword,
+    user.password,
+  );
+
+  if (!isCurrentPasswordValid) {
+    throw new Error("Current password is incorrect.");
+  }
+
+  const isSamePassword = await bcrypt.compare(newPassword, user.password);
+
+  if (isSamePassword) {
+    throw new Error(
+      "New password must be different from your current password.",
+    );
+  }
+
+  const hashNewPassword = await bcrypt.hash(
+    newPassword,
+    Number(config.bcrypt_salt_rounds),
+  );
+
+  await prisma.user.update({
+    where: {
+      id: userId,
+    },
+    data: {
+      password: hashNewPassword,
+    },
+  });
+
+  const templatePath = path.join(
+    process.cwd(),
+    "src/app/templates/reset-password-success.ejs",
+  );
+
+  const templateData = {
+    name: user?.name,
+    info: true,
+  };
+
+  const html = await ejs.renderFile(templatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: user.email,
+    subject: "Password Changed",
+    html,
+  });
+};
+
 // get my profile
 const getMyProfile = async (userId: string) => {
   if (!userId) {
@@ -828,4 +919,5 @@ export const authServices = {
   googleLogin,
   getMyProfile,
   refreshTokenToAccess,
+  changePassword,
 };

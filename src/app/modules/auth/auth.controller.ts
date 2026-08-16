@@ -152,6 +152,22 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+// user change password
+const changePassword = catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user?.id
+  const payload = req.body;
+
+  await authServices.changePassword(payload, userId as string);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Password Changed successfully",
+    data: null,
+  });
+});
+
 // resend otp email verify or forgot pass otp
 const resendOtp = catchAsync(async (req: Request, res: Response) => {
   const payload = req.body;
@@ -190,4 +206,5 @@ export const authController = {
   googleLogin,
   getMyProfile,
   refreshToken,
+  changePassword
 };
