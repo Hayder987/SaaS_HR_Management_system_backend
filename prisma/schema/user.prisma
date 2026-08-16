@@ -1,50 +1,43 @@
 model User {
-  id String @id @default(uuid()) @db.Uuid
-
-  name String
-
-  email String @unique
-
-  password String?
-
-  ImageUrl String?
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  email     String   @unique
+  password  String?
+  imageUrl  String?
 
   authMethod AuthMethod @default(CREDENTIALS)
+  role       UserRole   @default(PLATFORM_USER)
+  status     UserStatus @default(ACTIVE)
 
-  role UserRole @default(PLATFORM_USER)
-
-  status UserStatus @default(ACTIVE)
-
-  isEmailVerified Boolean @default(false)
-
+  isEmailVerified Boolean   @default(false)
   emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
 
-  lastLoginAt DateTime?
+  onboardingDeadline DateTime?
+  suspendedAt       DateTime?
+  suspensionWarningSentAt DateTime?
+  deletedAt         DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  onboardingDeadline DateTime?
-
-  memberships Membership[]
-
+  // Relations
+  memberships        Membership[]
   ownedOrganizations Organization[]
+  employees          Employee[]
 
-  employees Employee[]
-
-  leaveReviews EmployeeLeaveRequest[] @relation("LeaveReviewer")
-
-  leaveApprovals LeaveApproval[] @relation("LeaveApprover")
+  leaveReviews   EmployeeLeaveRequest[] @relation("LeaveReviewer")
+  leaveApprovals LeaveApproval[]        @relation("LeaveApprover")
 
   notifications Notification[]
+  auditLogs     AuditLog[]
+  payments      Payment[]
 
-  auditLogs AuditLog[]
-
-  payments Payment[]
-
+  // Indexes
   @@index([email])
   @@index([status])
   @@index([role])
   @@index([authMethod])
+
   @@map("users")
 }
