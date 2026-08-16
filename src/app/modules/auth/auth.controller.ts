@@ -15,7 +15,7 @@ const registerUser = catchAsync(async (req: Request, res: Response) => {
     statusCode: httpStatus.CREATED,
     success: true,
     message:
-      "User registered successfully & Email Verify OTP send To Your Mail",
+      `You are Temporary registered & Email Verification OTP send To Your Email:${payload.email}`,
     data: null,
   });
 });
@@ -29,7 +29,7 @@ const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message: "Email Verified successfully And Send Success Mail",
+    message: "Email Verified And Permanent Registered successfully And Send Success Mail",
     data: null,
   });
 });

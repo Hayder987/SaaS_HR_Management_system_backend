@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+
+    <title>Account Suspension Warning</title>
+  </head>
+
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #f4f6f8;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1f2937;
+    "
+  >
+    <table
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      style="
+        width: 100%;
+        background-color: #f4f6f8;
+        padding: 40px 16px;
+      "
+    >
+      <tr>
+        <td align="center">
+          <table
+            width="100%"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            style="
+              max-width: 600px;
+              background-color: #ffffff;
+              border-radius: 10px;
+              overflow: hidden;
+            "
+          >
+            <!-- Header -->
+            <tr>
+              <td
+                style="
+                  padding: 28px 32px;
+                  background-color: #111827;
+                  text-align: center;
+                "
+              >
+                <h1
+                  style="
+                    margin: 0;
+                    color: #ffffff;
+                    font-size: 24px;
+                    font-weight: 700;
+                  "
+                >
+                  HR Management
+                </h1>
+              </td>
+            </tr>
+
+            <!-- Warning -->
+            <tr>
+              <td
+                style="
+                  padding: 14px 32px;
+                  background-color: #fff7ed;
+                  border-bottom: 1px solid #fed7aa;
+                  text-align: center;
+                "
+              >
+                <p
+                  style="
+                    margin: 0;
+                    color: #c2410c;
+                    font-size: 14px;
+                    font-weight: 600;
+                  "
+                >
+                  Account Suspension Warning
+                </p>
+              </td>
+            </tr>
+
+            <!-- Content -->
+            <tr>
+              <td style="padding: 32px;">
+                <h2
+                  style="
+                    margin: 0 0 20px;
+                    color: #111827;
+                    font-size: 22px;
+                  "
+                >
+                  Hello <%= name %>,
+                </h2>
+
+                <p
+                  style="
+                    margin: 0 0 16px;
+                    color: #4b5563;
+                    font-size: 15px;
+                    line-height: 1.7;
+                  "
+                >
+                  We noticed that you have not completed the required
+                  onboarding process for your HR Management account.
+                </p>
+
+                <p
+                  style="
+                    margin: 0 0 24px;
+                    color: #4b5563;
+                    font-size: 15px;
+                    line-height: 1.7;
+                  "
+                >
+                  Your account is scheduled to be suspended if the
+                  onboarding process is not completed before the
+                  deadline below.
+                </p>
+
+                <!-- Suspension Deadline -->
+                <table
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="
+                    margin-bottom: 24px;
+                    background-color: #fff7ed;
+                    border: 1px solid #fed7aa;
+                    border-radius: 8px;
+                  "
+                >
+                  <tr>
+                    <td style="padding: 20px;">
+                      <p
+                        style="
+                          margin: 0 0 8px;
+                          color: #9a3412;
+                          font-size: 13px;
+                          font-weight: 600;
+                        "
+                      >
+                        Suspension Date
+                      </p>
+
+                      <p
+                        style="
+                          margin: 0;
+                          color: #c2410c;
+                          font-size: 18px;
+                          font-weight: 700;
+                        "
+                      >
+                        <%= suspensionDate %>
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+
+                <p
+                  style="
+                    margin: 0 0 24px;
+                    color: #4b5563;
+                    font-size: 15px;
+                    line-height: 1.7;
+                  "
+                >
+                  Create Organization Or Please Join any Organization or Membership process before the
+                  suspension date to keep your account active.
+                </p>
+
+                <!-- CTA -->
+                <% if (actionUrl) { %>
+                  <table
+                    width="100%"
+                    cellpadding="0"
+                    cellspacing="0"
+                    border="0"
+                    style="margin: 28px 0;"
+                  >
+                    <tr>
+                      <td align="center">
+                        <a
+                          href="<%= actionUrl %>"
+                          style="
+                            display: inline-block;
+                            padding: 13px 28px;
+                            background-color: #111827;
+                            color: #ffffff;
+                            text-decoration: none;
+                            border-radius: 6px;
+                            font-size: 14px;
+                            font-weight: 600;
+                          "
+                        >
+                          Complete Onboarding
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                <% } %>
+
+                <p
+                  style="
+                    margin: 0;
+                    color: #6b7280;
+                    font-size: 14px;
+                    line-height: 1.7;
+                  "
+                >
+                  If you have already completed the onboarding process,
+                  you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td
+                style="
+                  padding: 24px 32px;
+                  background-color: #f9fafb;
+                  border-top: 1px solid #e5e7eb;
+                  text-align: center;
+                "
+              >
+                <p
+                  style="
+                    margin: 0 0 8px;
+                    color: #6b7280;
+                    font-size: 13px;
+                  "
+                >
+                  This is an automated message from HR Management.
+                </p>
+
+                <p
+                  style="
+                    margin: 0;
+                    color: #9ca3af;
+                    font-size: 12px;
+                  "
+                >
+                  © <%= year %> HR Management. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

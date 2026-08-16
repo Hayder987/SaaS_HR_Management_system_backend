@@ -32,7 +32,6 @@ interface IGoogleLoginPayload {
   code: string;
 }
 
-
 // resister user
 const registerUser = async (payload: IRegisterUser) => {
   const name = payload.name.trim();
@@ -93,7 +92,7 @@ const registerUser = async (payload: IRegisterUser) => {
   await transporter.sendMail({
     from: config.email_sender,
     to: email,
-    subject: "verify Email ",
+    subject: "Verify Your Email ",
     html,
   });
 };
@@ -152,18 +151,18 @@ const verifyEmail = async (payload: IVerifyEmailPayload) => {
     }
   }
 
-  const onboardingDeadline = new Date();
-
-  onboardingDeadline.setDate(
-    onboardingDeadline.getDate() + 3,
-  );
+  // time generate
+  const now = new Date();
+  const suspensionWarningAt = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+  const onboardingDeadline = new Date(now.getTime() + 72 * 60 * 60 * 1000);
 
   const user = await prisma.user.create({
     data: {
       name: registrationData.name,
       email: registrationData.email,
-      password: registrationData.passwordHash,
-      onboardingDeadline : onboardingDeadline,
+      password: registrationData.hashedPassword,
+      onboardingDeadline,
+      suspensionWarningAt,
       authMethod: AuthMethod.CREDENTIALS,
       role: UserRole.PLATFORM_USER,
       status: UserStatus.ACTIVE,
@@ -306,7 +305,6 @@ const loginUser = async (payload: ILoginUser) => {
   }
 
   // PLATFORM USER
-
   const memberships = await prisma.membership.findMany({
     where: {
       userId: user.id,
@@ -563,10 +561,8 @@ const resendOtp = async (payload: any) => {
   });
 };
 
-
 // google login
 const googleLogin = async (payload: IGoogleLoginPayload) => {
-
   const { tokens } = await googleClient.getToken({
     code: payload.code,
     redirect_uri: config.google_redirect_uri,
@@ -607,25 +603,24 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
     throw new Error("Google User Name Not Found");
   }
 
-  const email = googleIdTokenPayload.email
-  .trim()
-  .toLowerCase();
+  const email = googleIdTokenPayload.email.trim().toLowerCase();
 
   let user = await prisma.user.findUnique({
     where: {
-      email
+      email,
     },
   });
 
-  if(user?.authMethod === AuthMethod.CREDENTIALS && user?.password){
-   throw new Error("An account already exists with this email. Please login using your email and password.")
+  if (user?.authMethod === AuthMethod.CREDENTIALS && user?.password) {
+    throw new Error(
+      "An account already exists with this email. Please login using your email and password.",
+    );
   }
 
-  const onboardingDeadline = new Date();
-
-  onboardingDeadline.setDate(
-    onboardingDeadline.getDate() + 3,
-  );
+   // time generate
+  const now = new Date();
+  const suspensionWarningAt = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+  const onboardingDeadline = new Date(now.getTime() + 72 * 60 * 60 * 1000);
 
   if (!user) {
     user = await prisma.user.create({
@@ -638,12 +633,12 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
         status: UserStatus.ACTIVE,
         isEmailVerified: true,
         emailVerifiedAt: new Date(),
-        onboardingDeadline: onboardingDeadline, 
+        suspensionWarningAt,
+        onboardingDeadline,
         lastLoginAt: new Date(),
       },
     });
   }
-
 
   if (user.status === UserStatus.SUSPENDED) {
     throw new Error("User Is SUSPENDED");
@@ -654,20 +649,18 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
   }
 
   user = await prisma.user.update({
-      where: {
-        id: user.id,
-      },
+    where: {
+      id: user.id,
+    },
 
-      data: {
-        name: user.name,
-        isEmailVerified: true,
-        emailVerifiedAt:
-        user.emailVerifiedAt ?? new Date(),
+    data: {
+      name: user.name,
+      isEmailVerified: true,
+      emailVerifiedAt: user.emailVerifiedAt ?? new Date(),
 
-        lastLoginAt: new Date(),
-
-      },
-    });
+      lastLoginAt: new Date(),
+    },
+  });
 
   const memberships = await prisma.membership.findMany({
     where: {
@@ -734,7 +727,7 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
       authMethod: user.authMethod,
       isEmailVerified: user.isEmailVerified,
       emailVerifiedAt: user.emailVerifiedAt,
-      lastLoginAt : user.lastLoginAt,
+      lastLoginAt: user.lastLoginAt,
     },
 
     access: {
@@ -747,8 +740,6 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
   };
 };
 
-
-
 export const authServices = {
   registerUser,
   forgotPassword,
@@ -756,6 +747,5 @@ export const authServices = {
   verifyEmail,
   resendOtp,
   loginUser,
-  googleLogin
-
+  googleLogin,
 };

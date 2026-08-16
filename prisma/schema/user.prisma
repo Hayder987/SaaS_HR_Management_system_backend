@@ -1,9 +1,9 @@
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  email     String   @unique
-  password  String?
-  imageUrl  String?
+  id       String  @id @default(uuid()) @db.Uuid
+  name     String
+  email    String  @unique
+  password String?
+  imageUrl String?
 
   authMethod AuthMethod @default(CREDENTIALS)
   role       UserRole   @default(PLATFORM_USER)
@@ -13,10 +13,12 @@ model User {
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
 
-  onboardingDeadline DateTime?
-  suspendedAt       DateTime?
+  onboardingDeadline      DateTime?
+  suspensionWarningAt     DateTime?
   suspensionWarningSentAt DateTime?
-  deletedAt         DateTime?
+  suspendedAt             DateTime?
+  suspensionEmailSentAt   DateTime?
+  deletedAt               DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -38,6 +40,5 @@ model User {
   @@index([status])
   @@index([role])
   @@index([authMethod])
-
   @@map("users")
 }

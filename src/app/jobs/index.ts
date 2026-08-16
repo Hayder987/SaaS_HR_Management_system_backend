@@ -1,14 +1,22 @@
 import cron from "node-cron";
 
-import { cleanupUnonboardedUsers } from "./cleanupUnonboardedUsers";
+import { processUnonboardedUsers } from "./processUnonboardedUsers";
 
 export const startCronJobs = () => {
-  // Run every hour
-  cron.schedule("0 * * * *", async () => {
+  /**
+   * Run every 5 minutes.
+   *
+   * This allows the system to process users
+   * shortly after their exact 48h / 72h deadline.
+   */
+  cron.schedule("*/5 * * * *", async () => {
     try {
-      await cleanupUnonboardedUsers();
+      await processUnonboardedUsers();
     } catch (error) {
-      console.error("Unonboarded user cleanup failed:", error);
+      console.error(
+        "Unonboarded user processing failed:",
+        error,
+      );
     }
   });
 
