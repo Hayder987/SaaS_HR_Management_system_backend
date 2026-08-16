@@ -35,4 +35,8 @@ export default {
   email_sender: process.env.EMAIL_SENDER!,
 
   stripe_secret_key: process.env.STRIPE_SECRET_KEY!,
+
+  cloudinary_cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  cloudinary_api_key: process.env.CLOUDINARY_API_KEY!,
+  cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET!,
 };

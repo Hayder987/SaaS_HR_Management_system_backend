@@ -15,6 +15,7 @@ import helmet from "helmet";
 import { requestLogger } from "./app/middleware/requestLogger";
 import { apiRateLimiter } from "./app/middleware/rateLimiter";
 import { planRoutes } from "./app/modules/plan/plan.routes";
+import { userRoutes } from "./app/modules/user/user.routes";
 
 const app: Application = express();
 
@@ -47,6 +48,7 @@ app.use(cookieParser());
 
 // route middleware
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/plans", planRoutes);
 
 

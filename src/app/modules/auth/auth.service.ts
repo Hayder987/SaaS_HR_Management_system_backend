@@ -321,7 +321,7 @@ const loginUser = async (payload: ILoginUser) => {
     select: {
       id: true,
       organizationId: true,
-      role: true,
+      orgRole: true,
       status: true,
 
       organization: {
@@ -720,7 +720,7 @@ const googleLogin = async (payload: IGoogleLoginPayload) => {
     select: {
       id: true,
       organizationId: true,
-      role: true,
+     orgRole:true,
       status: true,
 
       organization: {

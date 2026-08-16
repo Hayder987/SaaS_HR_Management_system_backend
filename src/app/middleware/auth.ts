@@ -121,6 +121,7 @@ export const auth = (...requiredRole: UserRole[]) => {
       email: user.email,
       isEmailVerified: user.isEmailVerified,
     };
+
     next();
   });
 };
