@@ -17,6 +17,7 @@ import { apiRateLimiter } from "./app/middleware/rateLimiter";
 import { planRoutes } from "./app/modules/plan/plan.routes";
 import { userRoutes } from "./app/modules/user/user.routes";
 
+
 const app: Application = express();
 
 // using helmet middleware
@@ -50,6 +51,7 @@ app.use(cookieParser());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/plans", planRoutes);
+
 
 
 // Global API rate limiter

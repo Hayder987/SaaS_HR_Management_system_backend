@@ -9,7 +9,7 @@ model Feature {
 
   plans PlanFeature[]
 
-  @@map("features")
+  @@index([isActive])
 }
 
 model PlanFeature {
@@ -19,9 +19,12 @@ model PlanFeature {
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
   feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
 
   @@unique([planId, featureId])
+  @@index([planId])
+  @@index([featureId])
   @@map("plan_features")
 }

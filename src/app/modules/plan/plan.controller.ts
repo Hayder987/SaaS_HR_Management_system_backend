@@ -1,56 +1,142 @@
-import  httpStatus  from 'http-status';
+import httpStatus from "http-status";
 import { Request, Response } from "express";
+
 import { catchAsync } from "../../utils/catchAsync";
-import { planServices } from "./plan.service";
 import { sendResponse } from "../../utils/sendResponse";
 
+import { planServices } from "./plan.service";
 
-// create plan
+/*
+|--------------------------------------------------------------------------
+| PLAN
+|--------------------------------------------------------------------------
+*/
+
 const createPlan = catchAsync(async (req: Request, res: Response) => {
-  const payload = req.body;
-
-  const result = await planServices.createPlan(payload);
+  const result = await planServices.createPlan(req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message: `${result.name} Plan Created SuccessFully!`,
+    message: "Plan created successfully",
     data: result,
   });
 });
 
-// get all plan
 const getAllPlan = catchAsync(async (req: Request, res: Response) => {
   const result = await planServices.getAllPlan();
 
   sendResponse(res, {
-    statusCode: httpStatus.CREATED,
+    statusCode: httpStatus.OK,
     success: true,
-    message: `All Plan Retrieve SuccessFully!`,
+    message: "All plans retrieved successfully",
     data: result,
   });
 });
 
-// get plan by id
-const getPlanById = catchAsync(
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
+const getPlanById = catchAsync(async (req: Request, res: Response) => {
+  const result = await planServices.getPlanById(req.params.id as string);
 
-    const result = await planServices.getPlanById(id as string);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Plan retrieved successfully",
+    data: result,
+  });
+});
+
+const updatePlan = catchAsync(async (req: Request, res: Response) => {
+  const result = await planServices.updatePlan(
+    req.params.id as string,
+    req.body,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Plan updated successfully",
+    data: result,
+  });
+});
+
+/*
+|--------------------------------------------------------------------------
+| FEATURE
+|--------------------------------------------------------------------------
+*/
+
+const createFeature = catchAsync(async (req: Request, res: Response) => {
+  const result = await planServices.createFeature(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Feature created successfully",
+    data: result,
+  });
+});
+
+const getAllFeatures = catchAsync(async (req: Request, res: Response) => {
+  const result = await planServices.getAllFeatures();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Features retrieved successfully",
+    data: result,
+  });
+});
+
+const getFeatureById = catchAsync(async (req: Request, res: Response) => {
+  const result = await planServices.getFeatureById(
+    req.params.featureId as string,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Feature retrieved successfully",
+    data: result,
+  });
+});
+
+const updateFeature = catchAsync(async (req: Request, res: Response) => {
+  const result = await planServices.updateFeature(
+    req.params.featureId as string,
+    req.body,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Feature updated successfully",
+    data: result,
+  });
+});
+
+const deactivateFeature = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await planServices.deactivateFeature(
+      req.params.featureId as string,
+    );
 
     sendResponse(res, {
-      statusCode: 200,
+      statusCode: httpStatus.OK,
       success: true,
-      message: "Plan retrieved successfully",
+      message: "Feature deactivated successfully",
       data: result,
     });
   },
 );
 
-
-// export plan controller
 export const planController = {
- createPlan,
- getAllPlan,
- getPlanById
-}
+  createPlan,
+  getAllPlan,
+  getPlanById,
+  updatePlan,
+  createFeature,
+  getAllFeatures,
+  getFeatureById,
+  updateFeature,
+  deactivateFeature,
+};
