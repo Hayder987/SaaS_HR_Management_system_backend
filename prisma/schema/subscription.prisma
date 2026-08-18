@@ -1,37 +1,38 @@
 model Subscription {
-  id                   String             @id @default(uuid()) @db.Uuid
-  organizationId       String             @unique @db.Uuid
-  planId               String             @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
+
+  organizationId String? @unique @db.Uuid
+
+  userId String @db.Uuid
+
+  planId String @db.Uuid
+
   stripeCustomerId     String?
-  stripeSubscriptionId String?            @unique
-  status               SubscriptionStatus @default(TRIALING)
-  currentPeriodStart   DateTime?
-  currentPeriodEnd     DateTime?
-  cancelAtPeriodEnd    Boolean            @default(false)
-  canceledAt           DateTime?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  stripeSubscriptionId String? @unique
 
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  plan         Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
-  payments     Payment[]
-  events       SubscriptionEvent[]
+  status SubscriptionStatus @default(INCOMPLETE)
 
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+
+  cancelAtPeriodEnd Boolean   @default(false)
+  canceledAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  payments Payment[]
+  events   SubscriptionEvent[]
+
+  @@index([userId, status])
   @@index([status])
   @@index([planId])
+  @@index([stripeCustomerId])
   @@map("subscriptions")
-}
-
-model SubscriptionEvent {
-  id             String   @id @default(uuid()) @db.Uuid
-  subscriptionId String   @db.Uuid
-  stripeEventId  String   @unique
-  eventType      String
-  payload        Json?
-  createdAt      DateTime @default(now())
-
-  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-
-  @@index([subscriptionId, createdAt])
-  @@map("subscription_events")
 }

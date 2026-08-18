@@ -1,32 +1,30 @@
-import { PlanName } from "../../../generated/prisma/enums";
+import { BillingInterval } from "../../../generated/prisma/enums";
 
-export interface ICreateCheckout {
+
+export interface ICreateCheckoutSession {
   planId: string;
-
-  organization: {
-    name: string;
-    slug: string;
-    email: string;
-    phone?: string;
-    address?: string;
-    locationName?: string;
-    latitude?: number;
-    longitude?: number;
-    timezone?: string;
-  };
 }
 
 export interface ICheckoutResponse {
   sessionId: string;
-  checkoutUrl: string;
+  url: string | null;
+}
 
-  plan: {
-    id: string;
-    name: PlanName;
-    displayName: string;
-    price: number;
-    currency: string;
-    billingInterval: string;
-    trialDays: number;
-  };
+export interface IStripeWebhookResponse {
+  received: boolean;
+}
+
+export interface ICreateSubscriptionData {
+  userId: string;
+  planId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  status: string;
+  currentPeriodStart: Date | null;
+  currentPeriodEnd: Date | null;
+}
+
+export interface IPlanPrice {
+  price: number;
+  billingInterval: BillingInterval;
 }

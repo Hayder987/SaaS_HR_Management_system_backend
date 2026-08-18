@@ -61,6 +61,25 @@ enum SubscriptionStatus {
   INCOMPLETE
 }
 
+enum SubscriptionEventType {
+  CREATED
+  UPDATED
+  ACTIVATED
+  RENEWED
+  CANCELLED
+  PAUSED
+  RESUMED
+  PAYMENT_FAILED
+  PAYMENT_SUCCEEDED
+  EXPIRED
+}
+
+enum PaymentMethod {
+  STRIPE
+  BKASH
+  SSLCOMMERZ
+}
+
 enum PaymentStatus {
   PENDING
   PAID

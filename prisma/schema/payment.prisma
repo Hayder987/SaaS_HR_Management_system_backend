@@ -6,6 +6,7 @@ model Payment {
   stripePaymentIntentId String?       @unique
   amount                Decimal       @db.Decimal(12, 2)
   currency              String        @default("USD")
+  paymentMethod         PaymentMethod @default(STRIPE)
   type                  PaymentType   @default(SUBSCRIPTION)
   status                PaymentStatus @default(PENDING)
   paidAt                DateTime?
