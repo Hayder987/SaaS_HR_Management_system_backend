@@ -17,6 +17,7 @@ import { apiRateLimiter } from "./app/middleware/rateLimiter";
 import { planRoutes } from "./app/modules/plan/plan.routes";
 import { userRoutes } from "./app/modules/user/user.routes";
 import { billingRoutes } from "./app/modules/billing/billing.routes";
+import { organizationsRoutes } from "./app/modules/organization/organization.route";
 
 
 const app: Application = express();
@@ -51,7 +52,8 @@ app.use(cookieParser());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/plans", planRoutes);
-app.use("/api/v1/subscription", billingRoutes)
+app.use("/api/v1/subscription", billingRoutes);
+app.use("/api/v1/organizations", organizationsRoutes);
 
 
 

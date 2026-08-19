@@ -8,7 +8,8 @@ model Organization {
   phone   String?
   address String?
 
-  logoUrl String?
+  logoUrl String? @default("")
+  imagePublicId String? @default("")
 
   locationName String?
   latitude     Decimal? @db.Decimal(10, 7)
@@ -23,7 +24,7 @@ model Organization {
 
   ownerUserId String @db.Uuid
 
-  storageUsedBytes BigInt @default(0)
+  storageUsedBytes Int @default(0)
 
   onboardingDeadline DateTime?
 
