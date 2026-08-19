@@ -4,6 +4,7 @@ model Payment {
   userId                String?       @db.Uuid
   subscriptionId        String?       @db.Uuid
   stripePaymentIntentId String?       @unique
+  stripeCheckoutSessionId String? @unique
   amount                Decimal       @db.Decimal(12, 2)
   currency              String        @default("USD")
   paymentMethod         PaymentMethod @default(STRIPE)

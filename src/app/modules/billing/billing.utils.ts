@@ -6,6 +6,7 @@ import {
   PaymentStatus,
   SubscriptionStatus,
 } from "../../../generated/prisma/enums";
+import { sendSubscriptionSuccessEmail } from "../../services/email.service";
 
 // convert endtime millisec to date string
 export const getPeriodEnd = (payload: Stripe.Subscription) => {
@@ -43,13 +44,57 @@ export const handleCheckoutCompleted = async (
     return;
   }
 
-  await prisma.$transaction(
+  const result = await prisma.$transaction(
     async (tx) => {
       const stripeSubscription =
         await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
       const currentPeriodEnd = getPeriodEnd(stripeSubscription);
       const currentPeriodStart = getPeriodStart(stripeSubscription);
+
+      const existingPayment = await tx.payment.findUnique({
+        where: {
+          stripeCheckoutSessionId: session.id,
+        },
+      });
+
+      if (existingPayment) {
+        console.log(`Checkout session already processed: ${session.id}`);
+
+        return;
+      }
+
+      const user = await tx.user.findUnique({
+        where: {
+          id: userId,
+        },
+
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      });
+
+      if (!user) {
+        throw new Error("User not found while processing payment");
+      }
+
+      const plan = await tx.plan.findUnique({
+        where: {
+          id: planId,
+        },
+
+        select: {
+          id: true,
+          name: true,
+          price: true,
+        },
+      });
+
+      if (!plan) {
+        throw new Error("Plan not found while processing payment");
+      }
 
       // create or update subscriptions
       const subscription = await tx.subscription.upsert({
@@ -76,11 +121,12 @@ export const handleCheckoutCompleted = async (
       });
 
       // create payment
-      await tx.payment.create({
+      const payment = await tx.payment.create({
         data: {
           userId,
           subscriptionId: subscription.id,
-          amount: session.amount_total?.toString()!,
+          stripeCheckoutSessionId: session.id,
+          amount: (session?.amount_total!/100)?.toString()!,
           currency: "USD",
           paymentMethod: PaymentMethod.STRIPE,
           status: PaymentStatus.PAID,
@@ -105,14 +151,54 @@ export const handleCheckoutCompleted = async (
         },
         data: {
           isPremium: true,
+          isOwner: true,
         },
       });
+
+      return {
+        user,
+
+        plan,
+
+        subscription,
+
+        payment,
+      };
     },
     {
-      maxWait: 15000,
-      timeout: 20000,
+      maxWait: 20000,
+      timeout: 25000,
     },
   );
+
+  const voucherNumber = `HR-VOUCHER-${result?.payment.id
+    .replace(/-/g, "")
+    .slice(0, 12)
+    .toUpperCase()}`;
+
+  // ====================================================
+  // Generate Voucher + Send Email
+  // ====================================================
+
+  try {
+    await sendSubscriptionSuccessEmail({
+      voucherNumber,
+      customerName: result?.user.name!,
+      customerEmail: result?.user.email!,
+      planName: result?.plan.name!,
+      amount: result?.payment.amount.toString()!,
+      currency: result?.payment.currency!,
+      paymentDate: result?.payment.paidAt ?? new Date(),
+      periodStart: result?.subscription?.currentPeriodStart!,
+      periodEnd: result?.subscription.currentPeriodEnd!,
+      stripeCustomerId,
+      stripeSubscriptionId,
+    });
+
+    console.log(`Subscription success email sent to ${result?.user.email}`);
+  } catch (error) {
+    console.error("Failed to send subscription success email:", error);
+  }
 };
 
 // handle subcription update status
