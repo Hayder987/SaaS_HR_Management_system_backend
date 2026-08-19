@@ -17,8 +17,8 @@ model User {
 
   lastLoginAt DateTime?
 
-  isOwner   Boolean @default(false)
-  isPremium Boolean @default(false)
+  isOwner          Boolean @default(false)
+  isPremium        Boolean @default(false)
 
   onboardingDeadline DateTime?
 
@@ -46,8 +46,7 @@ model User {
 
   payments Payment[]
 
-  // ADD THIS
-  subscriptions Subscription[]
+  subscriptions Subscription?
 
   @@index([email])
   @@index([status])

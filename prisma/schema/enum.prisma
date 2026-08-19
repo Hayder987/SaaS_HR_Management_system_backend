@@ -53,26 +53,14 @@ enum BillingInterval {
 }
 
 enum SubscriptionStatus {
+  CREATED
   TRIALING
   ACTIVE
-  PAST_DUE
   CANCELED
   EXPIRED
   INCOMPLETE
 }
 
-enum SubscriptionEventType {
-  CREATED
-  UPDATED
-  ACTIVATED
-  RENEWED
-  CANCELLED
-  PAUSED
-  RESUMED
-  PAYMENT_FAILED
-  PAYMENT_SUCCEEDED
-  EXPIRED
-}
 
 enum PaymentMethod {
   STRIPE

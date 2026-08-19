@@ -1,64 +1,78 @@
 import httpStatus from "http-status";
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { catchAsync } from "../../utils/catchAsync";
-import { billingService } from "./billing.service";
 import { sendResponse } from "../../utils/sendResponse";
+import { billingService } from "./billing.service";
+
+// =====================================================
+// CREATE CHECKOUT SESSION
+// =====================================================
 
 const createCheckoutSession = catchAsync(
-  async (req: Request, res: Response) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user?.id;
-    const planId = req.body.planId;
+
+    const { planId } = req.body;
 
     const result = await billingService.createCheckoutSession(
       userId as string,
-      planId as string,
+      planId,
     );
 
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.OK,
-      message: "Access Token Generated Successfully!",
+      message: "Checkout session created successfully",
       data: result,
     });
   },
 );
 
-const stripeWebhook = catchAsync(async (req: Request, res: Response) => {
-  const signature = req.headers["stripe-signature"];
+// =====================================================
+// STRIPE WEBHOOK
+// =====================================================
 
-  if (!signature) {
-    return res.status(400).json({
-      success: false,
+const stripeWebhook = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const event = req.body as Buffer;
+    const signature = req.headers["stripe-signature"]!;
 
-      message: "Stripe signature is missing",
+    await billingService.handleWebhook(event, signature as string);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: 200,
+      message: "Webhook triggered successfully",
+      data: null,
     });
-  }
+  },
+);
 
-  if (Array.isArray(signature)) {
-    return res.status(400).json({
-      success: false,
+// =====================================================
+// GET SUBSCRIPTION STATUS
+// =====================================================
 
-      message: "Invalid Stripe signature",
+const getSubscriptionStatus = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user?.id;
+    const result = await billingService.getSubscriptionStatus(userId as string);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Subscription status retrieved successfully",
+      data: result,
     });
-  }
+  },
+);
 
-  const event = billingService.constructStripeEvent(
-    req.body as Buffer,
-    signature,
-  );
+// =====================================================
+// EXPORT
+// =====================================================
 
-  await billingService.handleStripeWebhook(event);
-
-  sendResponse(res, {
-    success: true,
-    statusCode: httpStatus.OK,
-    message: "Access Token Generated Successfully!",
-    data: null,
-  });
-});
-
-// export
 export const billingController = {
   createCheckoutSession,
-  stripeWebhook
+
+  stripeWebhook,
+
+  getSubscriptionStatus,
 };

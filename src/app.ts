@@ -39,7 +39,7 @@ app.use(
 	}),
 );
 
-app.use("/api/subscription/webhook", express.raw({ type: 'application/json' }))
+app.use("/api/v1/subscription/webhook", express.raw({ type: 'application/json' }))
 
 // Enable URL-encoded form data parsing
 app.use(express.urlencoded({ extended: true }));

@@ -1,31 +1,27 @@
 import { Router } from "express";
-import { createCheckoutValidationSchema } from "./billing.validation";
+
+import { billingController } from "./billing.controller";
 import { auth } from "../../middleware/auth";
 import { UserRole } from "../../../generated/prisma/enums";
-import { billingController } from "./billing.controller";
-import { validateRequest } from "../../middleware/validateRequest";
 
 const router = Router();
 
 // =====================================================
-// CREATE CHECKOUT
+// AUTHENTICATED BILLING ROUTES
 // =====================================================
 
 router.post(
   "/checkout",
   auth(UserRole.PLATFORM_USER),
-  validateRequest(createCheckoutValidationSchema),
- billingController.createCheckoutSession,
+  billingController.createCheckoutSession,
 );
 
-// =====================================================
-// STRIPE WEBHOOK
-// =====================================================
+router.post("/webhook", billingController.stripeWebhook);
 
-router.post(
-  "/webhook",
-
-  billingController.stripeWebhook,
+router.get(
+  "/subscription",
+  auth(UserRole.PLATFORM_USER),
+  billingController.getSubscriptionStatus,
 );
 
 export const billingRoutes = router;
