@@ -9,6 +9,7 @@ import {
 } from "../../../generated/prisma/enums";
 import { stripe } from "../../lib/stripe";
 import { prisma } from "../../lib/prisma";
+import { sendSubscriptionSuccessEmail } from "../../services/email.service";
 
 // =====================================================
 // GET SUBSCRIPTION ID FROM INVOICE
@@ -260,6 +261,19 @@ export const handleCheckoutCompleted = async (
         },
       });
 
+      // -----------------------------------------------
+      // Set Current Organization user
+      // -----------------------------------------------
+       
+       await tx.user.update({
+        where : {
+          id : userId
+        },
+        data : {
+         activeOrgId : organization.id 
+        }
+      })
+
       // -------------------------------------------
       // IMPORTANT:
       //
@@ -480,7 +494,8 @@ export const handleInvoicePaid = async (invoice: Stripe.Invoice) => {
   // 2. Find local subscription
   // ---------------------------------------------------
 
-  const subscription = await prisma.subscription.findUnique({
+ const subscription =
+  await prisma.subscription.findUnique({
     where: {
       stripeSubscriptionId,
     },
@@ -508,7 +523,7 @@ export const handleInvoicePaid = async (invoice: Stripe.Invoice) => {
   // 5. Database transaction
   // ---------------------------------------------------
 
-  await prisma.$transaction(
+  const transactionResult = await prisma.$transaction(
     async (tx) => {
       const existingPayment = await tx.payment.findUnique({
         where: {
@@ -526,7 +541,7 @@ export const handleInvoicePaid = async (invoice: Stripe.Invoice) => {
       // Create payment
       // -----------------------------------------------
 
-      await tx.payment.create({
+      const updatedPayment = await tx.payment.create({
         data: {
           organizationId: subscription.organizationId,
 
@@ -552,7 +567,7 @@ export const handleInvoicePaid = async (invoice: Stripe.Invoice) => {
       // Subscription ACTIVE
       // -----------------------------------------------
 
-      await tx.subscription.update({
+      const updatedSubscription = await tx.subscription.update({
         where: {
           id: subscription.id,
         },
@@ -561,7 +576,7 @@ export const handleInvoicePaid = async (invoice: Stripe.Invoice) => {
           status: SubscriptionStatus.ACTIVE,
           trialStart: null,
           trialEnd: null,
-          
+
           currentPeriodStart: new Date(invoice.period_start * 1000),
           currentPeriodEnd: new Date(invoice.period_end * 1000),
         },
@@ -571,22 +586,23 @@ export const handleInvoicePaid = async (invoice: Stripe.Invoice) => {
       // Organization ACTIVE
       // -----------------------------------------------
 
-      await tx.organization.update({
+      const updatedOrganization = await tx.organization.update({
         where: {
           id: subscription.organizationId,
         },
 
         data: {
           status: OrganizationStatus.ACTIVE,
-          onboardingDeadline : null,
+          onboardingDeadline: null,
         },
       });
+
 
       // -----------------------------------------------
       // Memberships ACTIVE
       // -----------------------------------------------
 
-      await tx.membership.updateMany({
+      const updatedMembership = await tx.membership.updateMany({
         where: {
           organizationId: subscription.organizationId,
 
@@ -599,6 +615,13 @@ export const handleInvoicePaid = async (invoice: Stripe.Invoice) => {
           isActive: true,
         },
       });
+
+      return {
+        payment: updatedPayment,
+        subscription: updatedSubscription,
+        organization: updatedOrganization,
+        membership: updatedMembership,
+      };
     },
     {
       maxWait: 15000,
@@ -606,38 +629,67 @@ export const handleInvoicePaid = async (invoice: Stripe.Invoice) => {
     },
   );
 
+  const user = await prisma.user.findUnique({
+    where : {
+      id : subscription.userId
+    }
+  })
+
+  const plan = await prisma.plan.findUnique({
+    where : {
+      id : subscription.planId
+    }
+  })
+
+  const voucherNumber = `HR-VOUCHER-${transactionResult?.payment?.id
+    .replace(/-/g, "")
+    .slice(0, 12)
+    .toUpperCase()}`;
+
   console.log(`Invoice paid successfully: ${invoice.id}`);
+
+  try {
+    await sendSubscriptionSuccessEmail({
+      voucherNumber,
+      customerName: user?.name!,
+      customerEmail: user?.email!,
+      planName: plan?.name!,
+      amount: transactionResult?.payment.amount.toString()!,
+      currency: transactionResult?.payment.currency!,
+      paymentDate: transactionResult?.payment.paidAt ?? new Date(),
+      periodStart: transactionResult?.subscription?.currentPeriodStart!,
+      periodEnd: transactionResult?.subscription.currentPeriodEnd!,
+      stripeInvoiceId : transactionResult?.payment?.stripeInvoiceId!,
+      stripePaymentIntentId : transactionResult?.payment?.stripePaymentIntentId!,
+      stripeSubscriptionId,
+    });
+
+    console.log(`Subscription success email sent to ${user?.email}`);
+  } catch (error) {
+    console.error("Failed to send subscription success email:", error);
+  }
 };
 
 // =====================================================
 // INVOICE PAYMENT FAILED
 // =====================================================
-export const handleInvoicePaymentFailed = async (
-  invoice: Stripe.Invoice,
-) => {
-
-  const stripeSubscriptionId =
-    getInvoiceSubscriptionId(invoice);
+export const handleInvoicePaymentFailed = async (invoice: Stripe.Invoice) => {
+  const stripeSubscriptionId = getInvoiceSubscriptionId(invoice);
 
   if (!stripeSubscriptionId) {
-    console.log(
-      `No subscription found in failed invoice: ${invoice.id}`,
-    );
+    console.log(`No subscription found in failed invoice: ${invoice.id}`);
 
     return;
   }
 
-  const subscription =
-    await prisma.subscription.findUnique({
-      where: {
-        stripeSubscriptionId,
-      },
-    });
+  const subscription = await prisma.subscription.findUnique({
+    where: {
+      stripeSubscriptionId,
+    },
+  });
 
   if (!subscription) {
-    console.log(
-      `Subscription not found for failed invoice: ${invoice.id}`,
-    );
+    console.log(`Subscription not found for failed invoice: ${invoice.id}`);
 
     return;
   }
@@ -654,8 +706,7 @@ export const handleInvoicePaymentFailed = async (
         },
 
         data: {
-          status:
-            SubscriptionStatus.PAST_DUE,
+          status: SubscriptionStatus.PAST_DUE,
         },
       });
     },
@@ -665,9 +716,7 @@ export const handleInvoicePaymentFailed = async (
     },
   );
 
-  console.log(
-    `Subscription marked as PAST_DUE. Invoice: ${invoice.id}`,
-  );
+  console.log(`Subscription marked as PAST_DUE. Invoice: ${invoice.id}`);
 };
 // =====================================================
 // TRIAL WILL END

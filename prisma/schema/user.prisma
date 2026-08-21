@@ -1,40 +1,54 @@
 model User {
-  id              String     @id @default(uuid()) @db.Uuid
-  name            String
-  email           String     @unique
-  password        String?
-  imageUrl        String     @default("")
-  imagePublicId   String     @default("")
-  authMethod      AuthMethod @default(CREDENTIALS)
-  role            UserRole   @default(PLATFORM_USER)
-  status          UserStatus @default(ACTIVE)
-  isEmailVerified Boolean    @default(false)
+  id String @id @default(uuid()) @db.Uuid
+
+  name String
+  email String @unique
+
+  password String?
+
+  imageUrl String @default("")
+  imagePublicId String @default("")
+
+  authMethod AuthMethod @default(CREDENTIALS)
+
+  role UserRole @default(PLATFORM_USER)
+
+  status UserStatus @default(ACTIVE)
+
+  isEmailVerified Boolean @default(false)
+
   emailVerifiedAt DateTime?
 
   lastLoginAt DateTime?
 
   onboardingDeadline DateTime?
 
-  suspensionWarningAt     DateTime?
+  suspensionWarningAt DateTime?
+
   suspensionWarningSentAt DateTime?
 
-  suspendedAt           DateTime?
+  suspendedAt DateTime?
+
   suspensionEmailSentAt DateTime?
 
   deletedAt DateTime?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   activeOrgId String?
 
-  memberships        Membership[]
+  memberships Membership[]
+
   ownedOrganizations Organization[]
 
   employees Employee[]
+  subscriptions Subscription[]
 
   @@index([email])
   @@index([status])
   @@index([role])
   @@index([authMethod])
+
   @@map("users")
 }

@@ -39,7 +39,7 @@ model Organization {
   departments  Department[]
   designations Designation[]
 
-  subscription Subscription[]
+  subscription Subscription?
 
   workLocations WorkLocation[]
   shifts        Shift[]

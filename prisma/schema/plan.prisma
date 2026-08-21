@@ -30,6 +30,7 @@ model Plan {
 
   features      PlanFeature[]
   subscriptions Subscription[]
+  payments Payment[]
 
   @@index([isActive, sortOrder])
 }
