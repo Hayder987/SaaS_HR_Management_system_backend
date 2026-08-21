@@ -1,19 +1,22 @@
 model Subscription {
   id String @id @default(uuid()) @db.Uuid
 
-  organizationId String? @unique @db.Uuid
+  organizationId String @unique @db.Uuid
 
-  userId String @unique @db.Uuid 
+  userId String @unique @db.Uuid
 
   planId String @db.Uuid
 
   stripeSubscriptionId String? @unique
-  stripeCustomerId String @unique
+  stripeCustomerId     String?
 
   status SubscriptionStatus @default(INCOMPLETE)
 
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
+
+  trialStart           DateTime?
+  trialEnd             DateTime?
 
   cancelAtPeriodEnd Boolean   @default(false)
   canceledAt        DateTime?
@@ -21,18 +24,14 @@ model Subscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
 
   payments Payment[]
-  
+
   @@index([userId, status])
   @@index([status])
   @@index([planId])
-  
-  
   @@map("subscriptions")
 }

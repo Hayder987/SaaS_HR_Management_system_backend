@@ -1,244 +1,459 @@
 import Stripe from "stripe";
-import { stripe } from "../../lib/stripe";
-import { prisma } from "../../lib/prisma";
+
 import {
-  PaymentMethod,
+  MembershipStatus,
+  OrganizationStatus,
+  paymentMethod,
   PaymentStatus,
   SubscriptionStatus,
 } from "../../../generated/prisma/enums";
-import { sendSubscriptionSuccessEmail } from "../../services/email.service";
+import { stripe } from "../../lib/stripe";
+import { prisma } from "../../lib/prisma";
 
-// convert endtime millisec to date string
+// =====================================================
+// GET SUBSCRIPTION ID FROM INVOICE
+// Stripe SDK v22+
+// =====================================================
+
+const getInvoiceSubscriptionId = (invoice: Stripe.Invoice): string | null => {
+  const subscription = invoice.parent?.subscription_details?.subscription;
+
+  if (!subscription) {
+    return null;
+  }
+
+  if (typeof subscription === "string") {
+    return subscription;
+  }
+
+  return subscription.id;
+};
+
+// =====================================================
+// GET PAYMENT INTENT ID FROM INVOICE
+// Stripe SDK v22+
+// =====================================================
+
+const getInvoicePaymentIntentId = (invoice: Stripe.Invoice): string | null => {
+  const invoicePayment = invoice.payments?.data?.[0];
+
+  if (!invoicePayment) {
+    return null;
+  }
+
+  const payment = invoicePayment.payment;
+
+  if (!payment) {
+    return null;
+  }
+
+  const paymentIntent = payment.payment_intent;
+
+  if (!paymentIntent) {
+    return null;
+  }
+
+  if (typeof paymentIntent === "string") {
+    return paymentIntent;
+  }
+
+  return paymentIntent.id;
+};
+
+// =====================================================
+// STRIPE PERIOD HELPERS
+// =====================================================
+
 export const getPeriodEnd = (payload: Stripe.Subscription) => {
-  const getCurrentPeriodEndInmillisec =
-    payload.items.data[0]?.current_period_end!;
+  const timestamp = payload.items.data[0]?.current_period_end;
 
-  const getCurrentPeriodEnd = new Date(getCurrentPeriodEndInmillisec * 1000);
-  return getCurrentPeriodEnd;
+  if (!timestamp) {
+    return null;
+  }
+
+  return new Date(timestamp * 1000);
 };
 
 export const getPeriodStart = (payload: Stripe.Subscription) => {
-  const getCurrentPeriodStartInmillisec =
-    payload.items.data[0]?.current_period_start!;
+  const timestamp = payload.items.data[0]?.current_period_start;
 
-  const getCurrentPeriodEnd = new Date(getCurrentPeriodStartInmillisec * 1000);
-  return getCurrentPeriodEnd;
+  if (!timestamp) {
+    return null;
+  }
+
+  return new Date(timestamp * 1000);
 };
 
-// Occurs when a Checkout Session has been successfully completed. handler
+export const getTrialStart = (payload: Stripe.Subscription) => {
+  return payload.trial_start ? new Date(payload.trial_start * 1000) : null;
+};
+
+export const getTrialEnd = (payload: Stripe.Subscription) => {
+  return payload.trial_end ? new Date(payload.trial_end * 1000) : null;
+};
+
+// =====================================================
+// CHECKOUT SESSION COMPLETED
+// =====================================================
+
 export const handleCheckoutCompleted = async (
   session: Stripe.Checkout.Session,
 ) => {
   if (!session) {
-    console.log("No Session Found");
     return;
   }
 
   const userId = session.metadata?.userId;
-  const planId = session.metadata?.planId;
-  const stripeCustomerId = session.customer as string;
-  const stripeSubscriptionId = session.subscription as string;
 
-  if (!userId || !planId || !stripeSubscriptionId || !stripeCustomerId) {
-    console.log("Webhook : Missing values For Creating Checkout Session");
+  const organizationId = session.metadata?.organizationId;
+
+  const planId = session.metadata?.planId;
+
+  const stripeCustomerId =
+    typeof session.customer === "string" ? session.customer : null;
+
+  const stripeSubscriptionId =
+    typeof session.subscription === "string" ? session.subscription : null;
+
+  if (
+    !userId ||
+    !organizationId ||
+    !planId ||
+    !stripeCustomerId ||
+    !stripeSubscriptionId
+  ) {
+    console.error("Checkout webhook missing metadata");
+
     return;
   }
 
-  const result = await prisma.$transaction(
+  // -----------------------------------------------
+  // Retrieve Stripe subscription
+  // -----------------------------------------------
+
+  const stripeSubscription =
+    await stripe.subscriptions.retrieve(stripeSubscriptionId);
+
+  const trialStart = getTrialStart(stripeSubscription);
+
+  const trialEnd = getTrialEnd(stripeSubscription);
+
+  const currentPeriodStart = getPeriodStart(stripeSubscription);
+
+  const currentPeriodEnd = getPeriodEnd(stripeSubscription);
+
+  // -----------------------------------------------
+  // DB transaction
+  // -----------------------------------------------
+
+  await prisma.$transaction(
     async (tx) => {
-      const stripeSubscription =
-        await stripe.subscriptions.retrieve(stripeSubscriptionId);
+      // -------------------------------------------
+      // Verify organization
+      // -------------------------------------------
 
-      const currentPeriodEnd = getPeriodEnd(stripeSubscription);
-      const currentPeriodStart = getPeriodStart(stripeSubscription);
-
-      const existingPayment = await tx.payment.findUnique({
+      const organization = await tx.organization.findUnique({
         where: {
-          stripeCheckoutSessionId: session.id,
+          id: organizationId,
         },
       });
 
-      if (existingPayment) {
-        console.log(`Checkout session already processed: ${session.id}`);
-
-        return;
+      if (!organization) {
+        throw new Error("Organization not found");
       }
 
-      const user = await tx.user.findUnique({
-        where: {
-          id: userId,
-        },
-
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      });
-
-      if (!user) {
-        throw new Error("User not found while processing payment");
-      }
+      // -------------------------------------------
+      // Verify plan
+      // -------------------------------------------
 
       const plan = await tx.plan.findUnique({
         where: {
           id: planId,
         },
-
-        select: {
-          id: true,
-          name: true,
-          price: true,
-        },
       });
 
       if (!plan) {
-        throw new Error("Plan not found while processing payment");
+        throw new Error("Plan not found");
       }
 
-      // create or update subscriptions
-      const subscription = await tx.subscription.upsert({
+      // -------------------------------------------
+      // Upsert subscription
+      // -------------------------------------------
+
+      await tx.subscription.upsert({
         where: {
-          userId,
+          organizationId,
         },
+
         create: {
-          userId,
+          organizationId,
           planId,
+          userId,
           stripeCustomerId,
           stripeSubscriptionId,
-          status: SubscriptionStatus.CREATED,
+
+          status:
+            stripeSubscription.status === "trialing"
+              ? SubscriptionStatus.TRIALING
+              : SubscriptionStatus.ACTIVE,
+
+          trialStart,
+          trialEnd,
+
           currentPeriodStart,
           currentPeriodEnd,
+
+          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
         },
+
         update: {
           planId,
+
           stripeCustomerId,
           stripeSubscriptionId,
-          status: SubscriptionStatus.ACTIVE,
+
+          status:
+            stripeSubscription.status === "trialing"
+              ? SubscriptionStatus.TRIALING
+              : SubscriptionStatus.ACTIVE,
+
+          trialStart,
+          trialEnd,
+
           currentPeriodStart,
           currentPeriodEnd,
+
+          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
         },
       });
 
-      // create payment
-      const payment = await tx.payment.create({
-        data: {
-          userId,
-          subscriptionId: subscription.id,
-          stripeCheckoutSessionId: session.id,
-          amount: (session?.amount_total!/100)?.toString()!,
-          currency: "USD",
-          paymentMethod: PaymentMethod.STRIPE,
-          status: PaymentStatus.PAID,
-          paidAt: currentPeriodStart,
-          metadata: {
-            planId,
-            stripeCustomerId,
-            country: session.customer_details?.address?.country,
-            invoice: session?.invoice as string,
-            payment_status: session?.payment_status,
-            presentment_amount:
-              session?.presentment_details?.presentment_amount,
-            presentment_currency:
-              session?.presentment_details?.presentment_currency,
-          },
-        },
-      });
+      // -------------------------------------------
+      // Activate organization
+      // -------------------------------------------
+      const onboardingDeadline = new Date();
+      onboardingDeadline.setDate(onboardingDeadline.getDate() + 30);
 
-      await tx.user.update({
+      await tx.organization.update({
         where: {
-          id: userId,
+          id: organizationId,
         },
+
         data: {
-          isPremium: true,
-          isOwner: true,
+          status: OrganizationStatus.ACTIVE,
+          onboardingDeadline,
         },
       });
 
-      return {
-        user,
+      // -------------------------------------------
+      // Activate owner membership
+      // -------------------------------------------
 
-        plan,
+      await tx.membership.updateMany({
+        where: {
+          organizationId,
+          userId,
+        },
 
-        subscription,
+        data: {
+          status: MembershipStatus.ACTIVE,
+          isActive: true,
+        },
+      });
 
-        payment,
-      };
+      // -------------------------------------------
+      // IMPORTANT:
+      //
+      // DO NOT create PAID payment here.
+      //
+      // Because this is a free trial.
+      //
+      // Actual payment will be recorded from
+      // invoice.paid.
+      // -------------------------------------------
     },
     {
-      maxWait: 20000,
-      timeout: 25000,
+      maxWait: 15000,
+      timeout: 20000,
     },
   );
-
-  const voucherNumber = `HR-VOUCHER-${result?.payment.id
-    .replace(/-/g, "")
-    .slice(0, 12)
-    .toUpperCase()}`;
-
-  // ====================================================
-  // Generate Voucher + Send Email
-  // ====================================================
-
-  try {
-    await sendSubscriptionSuccessEmail({
-      voucherNumber,
-      customerName: result?.user.name!,
-      customerEmail: result?.user.email!,
-      planName: result?.plan.name!,
-      amount: result?.payment.amount.toString()!,
-      currency: result?.payment.currency!,
-      paymentDate: result?.payment.paidAt ?? new Date(),
-      periodStart: result?.subscription?.currentPeriodStart!,
-      periodEnd: result?.subscription.currentPeriodEnd!,
-      stripeCustomerId,
-      stripeSubscriptionId,
-    });
-
-    console.log(`Subscription success email sent to ${result?.user.email}`);
-  } catch (error) {
-    console.error("Failed to send subscription success email:", error);
-  }
 };
 
-// handle subcription update status
-export const handleChangeSubscription = async (
+// =====================================================
+// SUBSCRIPTION UPDATED
+// =====================================================
+
+export const handleSubscriptionUpdated = async (
   payload: Stripe.Subscription,
 ) => {
   const stripeSubscriptionId = payload.id;
 
-  const status =
-    payload.status === "active" || payload.status === "trialing"
-      ? SubscriptionStatus.ACTIVE
-      : payload.status === "canceled"
-        ? SubscriptionStatus.CANCELED
-        : SubscriptionStatus.EXPIRED;
+  const subscriptionStatus = payload.status;
+
+  const currentPeriodStart = getPeriodStart(payload);
 
   const currentPeriodEnd = getPeriodEnd(payload);
 
+  const trialStart = getTrialStart(payload);
+
+  const trialEnd = getTrialEnd(payload);
+
+  let status: SubscriptionStatus;
+
+  switch (subscriptionStatus) {
+    case "trialing":
+      status = SubscriptionStatus.TRIALING;
+      break;
+
+    case "active":
+      status = SubscriptionStatus.ACTIVE;
+      break;
+
+    case "past_due":
+      status = SubscriptionStatus.PAST_DUE;
+      break;
+
+    case "canceled":
+      status = SubscriptionStatus.CANCELED;
+      break;
+
+    case "incomplete":
+      status = SubscriptionStatus.INCOMPLETE;
+      break;
+
+    default:
+      status = SubscriptionStatus.EXPIRED;
+  }
+
   await prisma.$transaction(
     async (tx) => {
-      const isSubscriptionExist = await tx.subscription.findUnique({
+      const subscription = await tx.subscription.findUnique({
         where: {
           stripeSubscriptionId,
         },
       });
 
-      if (!isSubscriptionExist) {
-        console.log(
-          `Webhook : No Subscription found for subscription id : ${stripeSubscriptionId}`,
-        );
+      if (!subscription) {
+        console.log(`Subscription not found: ${stripeSubscriptionId}`);
 
         return;
       }
 
       await tx.subscription.update({
         where: {
-          stripeSubscriptionId,
+          id: subscription.id,
         },
+
         data: {
           status,
+
+          currentPeriodStart,
           currentPeriodEnd,
+
+          trialStart,
+          trialEnd,
+
+          cancelAtPeriodEnd: payload.cancel_at_period_end,
+
+          canceledAt: payload.canceled_at
+            ? new Date(payload.canceled_at * 1000)
+            : null,
+        },
+      });
+
+      // -------------------------------------------
+      // ACTIVE / TRIALING
+      // -------------------------------------------
+
+      if (
+        status === SubscriptionStatus.ACTIVE ||
+        status === SubscriptionStatus.TRIALING
+      ) {
+        await tx.organization.update({
+          where: {
+            id: subscription.organizationId,
+          },
+
+          data: {
+            status: OrganizationStatus.ACTIVE,
+          },
+        });
+      }
+    },
+    {
+      maxWait: 15000,
+      timeout: 20000,
+    },
+  );
+};
+
+// =====================================================
+// SUBSCRIPTION DELETED / CANCELED
+// =====================================================
+
+export const handleSubscriptionDeleted = async (
+  payload: Stripe.Subscription,
+) => {
+  const stripeSubscriptionId = payload.id;
+
+  await prisma.$transaction(
+    async (tx) => {
+      const subscription = await tx.subscription.findUnique({
+        where: {
+          stripeSubscriptionId,
+        },
+      });
+
+      if (!subscription) {
+        console.log(`Subscription not found: ${stripeSubscriptionId}`);
+
+        return;
+      }
+
+      // -----------------------------------------
+      // Subscription
+      // -----------------------------------------
+
+      await tx.subscription.update({
+        where: {
+          id: subscription.id,
+        },
+
+        data: {
+          status: SubscriptionStatus.CANCELED,
+
+          canceledAt: new Date(),
+        },
+      });
+
+      // -----------------------------------------
+      // Organization
+      // -----------------------------------------
+
+      await tx.organization.update({
+        where: {
+          id: subscription.organizationId,
+        },
+
+        data: {
+          status: OrganizationStatus.SUSPENDED,
+        },
+      });
+
+      // -----------------------------------------
+      // Organization memberships
+      // -----------------------------------------
+
+      await tx.membership.updateMany({
+        where: {
+          organizationId: subscription.organizationId,
+
+          status: MembershipStatus.ACTIVE,
+        },
+
+        data: {
+          status: MembershipStatus.SUSPENDED,
+
+          isActive: false,
         },
       });
     },
@@ -247,4 +462,226 @@ export const handleChangeSubscription = async (
       timeout: 20000,
     },
   );
+};
+
+// =====================================================
+// INVOICE PAID
+// =====================================================
+
+export const handleInvoicePaid = async (invoice: Stripe.Invoice) => {
+  const stripeSubscriptionId = getInvoiceSubscriptionId(invoice);
+
+  if (!stripeSubscriptionId) {
+    console.log(`No subscription found in invoice: ${invoice.id}`);
+
+    return;
+  }
+  // ---------------------------------------------------
+  // 2. Find local subscription
+  // ---------------------------------------------------
+
+  const subscription = await prisma.subscription.findUnique({
+    where: {
+      stripeSubscriptionId,
+    },
+  });
+
+  if (!subscription) {
+    console.log(`Subscription not found for invoice: ${invoice.id}`);
+
+    return;
+  }
+
+  const paymentIntentId = getInvoicePaymentIntentId(invoice);
+
+  const amount = Number(invoice.amount_paid) / 100;
+
+  if (amount <= 0) {
+    console.log(
+      `Invoice ${invoice.id} has no charge. Skipping payment creation.`,
+    );
+
+    return;
+  }
+
+  // ---------------------------------------------------
+  // 5. Database transaction
+  // ---------------------------------------------------
+
+  await prisma.$transaction(
+    async (tx) => {
+      const existingPayment = await tx.payment.findUnique({
+        where: {
+          stripeInvoiceId: invoice.id,
+        },
+      });
+
+      if (existingPayment) {
+        console.log(`Invoice already processed: ${invoice.id}`);
+
+        return;
+      }
+
+      // -----------------------------------------------
+      // Create payment
+      // -----------------------------------------------
+
+      await tx.payment.create({
+        data: {
+          organizationId: subscription.organizationId,
+
+          subscriptionId: subscription.id,
+
+          stripeInvoiceId: invoice.id,
+
+          stripePaymentIntentId: paymentIntentId,
+
+          amount: amount.toString(),
+
+          currency: invoice.currency.toUpperCase(),
+
+          paymentMethod: paymentMethod.STRIPE,
+
+          status: PaymentStatus.PAID,
+
+          paidAt: new Date(),
+        },
+      });
+
+      // -----------------------------------------------
+      // Subscription ACTIVE
+      // -----------------------------------------------
+
+      await tx.subscription.update({
+        where: {
+          id: subscription.id,
+        },
+
+        data: {
+          status: SubscriptionStatus.ACTIVE,
+          trialStart: null,
+          trialEnd: null,
+          
+          currentPeriodStart: new Date(invoice.period_start * 1000),
+          currentPeriodEnd: new Date(invoice.period_end * 1000),
+        },
+      });
+
+      // -----------------------------------------------
+      // Organization ACTIVE
+      // -----------------------------------------------
+
+      await tx.organization.update({
+        where: {
+          id: subscription.organizationId,
+        },
+
+        data: {
+          status: OrganizationStatus.ACTIVE,
+          onboardingDeadline : null,
+        },
+      });
+
+      // -----------------------------------------------
+      // Memberships ACTIVE
+      // -----------------------------------------------
+
+      await tx.membership.updateMany({
+        where: {
+          organizationId: subscription.organizationId,
+
+          status: MembershipStatus.SUSPENDED,
+        },
+
+        data: {
+          status: MembershipStatus.ACTIVE,
+
+          isActive: true,
+        },
+      });
+    },
+    {
+      maxWait: 15000,
+      timeout: 20000,
+    },
+  );
+
+  console.log(`Invoice paid successfully: ${invoice.id}`);
+};
+
+// =====================================================
+// INVOICE PAYMENT FAILED
+// =====================================================
+export const handleInvoicePaymentFailed = async (
+  invoice: Stripe.Invoice,
+) => {
+
+  const stripeSubscriptionId =
+    getInvoiceSubscriptionId(invoice);
+
+  if (!stripeSubscriptionId) {
+    console.log(
+      `No subscription found in failed invoice: ${invoice.id}`,
+    );
+
+    return;
+  }
+
+  const subscription =
+    await prisma.subscription.findUnique({
+      where: {
+        stripeSubscriptionId,
+      },
+    });
+
+  if (!subscription) {
+    console.log(
+      `Subscription not found for failed invoice: ${invoice.id}`,
+    );
+
+    return;
+  }
+
+  // ---------------------------------------------------
+  // 3. Update subscription
+  // ---------------------------------------------------
+
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.subscription.update({
+        where: {
+          id: subscription.id,
+        },
+
+        data: {
+          status:
+            SubscriptionStatus.PAST_DUE,
+        },
+      });
+    },
+    {
+      maxWait: 15000,
+      timeout: 20000,
+    },
+  );
+
+  console.log(
+    `Subscription marked as PAST_DUE. Invoice: ${invoice.id}`,
+  );
+};
+// =====================================================
+// TRIAL WILL END
+// =====================================================
+
+export const handleTrialWillEnd = async (payload: Stripe.Subscription) => {
+  const organizationId = payload.metadata?.organizationId;
+
+  if (!organizationId) {
+    return;
+  }
+
+  console.log(`Trial will end soon for organization: ${organizationId}`);
+
+  // TODO:
+  // sendSubscriptionTrialEndingEmail(...)
 };

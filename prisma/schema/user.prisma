@@ -1,24 +1,17 @@
 model User {
-  id String @id @default(uuid()) @db.Uuid
-
-  name     String
-  email    String  @unique
-  password String?
-
-  imageUrl      String @default("")
-  imagePublicId String @default("")
-
-  authMethod AuthMethod @default(CREDENTIALS)
-  role       UserRole   @default(PLATFORM_USER)
-  status     UserStatus @default(ACTIVE)
-
-  isEmailVerified Boolean   @default(false)
+  id              String     @id @default(uuid()) @db.Uuid
+  name            String
+  email           String     @unique
+  password        String?
+  imageUrl        String     @default("")
+  imagePublicId   String     @default("")
+  authMethod      AuthMethod @default(CREDENTIALS)
+  role            UserRole   @default(PLATFORM_USER)
+  status          UserStatus @default(ACTIVE)
+  isEmailVerified Boolean    @default(false)
   emailVerifiedAt DateTime?
 
   lastLoginAt DateTime?
-
-  isOwner          Boolean @default(false)
-  isPremium        Boolean @default(false)
 
   onboardingDeadline DateTime?
 
@@ -30,29 +23,18 @@ model User {
 
   deletedAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  activeOrgId String?
 
   memberships        Membership[]
   ownedOrganizations Organization[]
 
   employees Employee[]
 
-  leaveReviews   EmployeeLeaveRequest[] @relation("LeaveReviewer")
-  leaveApprovals LeaveApproval[]        @relation("LeaveApprover")
-
-  notifications Notification[]
-  auditLogs     AuditLog[]
-
-  payments Payment[]
-
-  subscriptions Subscription?
-
   @@index([email])
   @@index([status])
   @@index([role])
   @@index([authMethod])
-  @@index([isOwner])
-  @@index([isPremium])
   @@map("users")
 }

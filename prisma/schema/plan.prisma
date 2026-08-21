@@ -16,7 +16,7 @@ model Plan {
   maxEmployees Int
   maxStorageMB Int
 
-  trialDays Int @default(0)
+  trialDays Int @default(7)
 
   stripeProductId String? @unique
   stripePriceId   String? @unique

@@ -4,6 +4,7 @@ model Membership {
   userId         String           @db.Uuid
   orgRole        OrgRole          @default(EMPLOYEE)
   status         MembershipStatus @default(ACTIVE)
+  isActive       Boolean          @default(false)
   invitedAt      DateTime?
   joinedAt       DateTime?
   createdAt      DateTime         @default(now())

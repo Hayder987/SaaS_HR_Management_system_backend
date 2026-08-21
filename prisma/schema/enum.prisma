@@ -53,16 +53,15 @@ enum BillingInterval {
 }
 
 enum SubscriptionStatus {
-  CREATED
   TRIALING
   ACTIVE
+  PAST_DUE
   CANCELED
   EXPIRED
   INCOMPLETE
 }
 
-
-enum PaymentMethod {
+enum paymentMethod {
   STRIPE
   BKASH
   SSLCOMMERZ

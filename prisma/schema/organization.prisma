@@ -8,7 +8,7 @@ model Organization {
   phone   String?
   address String?
 
-  logoUrl String? @default("")
+  logoUrl       String? @default("")
   imagePublicId String? @default("")
 
   locationName String?
@@ -39,7 +39,7 @@ model Organization {
   departments  Department[]
   designations Designation[]
 
-  subscription Subscription?
+  subscription Subscription[]
 
   workLocations WorkLocation[]
   shifts        Shift[]

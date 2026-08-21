@@ -52,11 +52,11 @@ model EmployeeLeaveRequest {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  employee     Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType    LeaveType       @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
-  reviewedBy   User?           @relation("LeaveReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-  approvals    LeaveApproval[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType    @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+
+  approvals LeaveApproval[]
 
   @@index([organizationId, employeeId, status])
   @@index([organizationId, status])
@@ -76,7 +76,6 @@ model LeaveApproval {
   createdAt      DateTime       @default(now())
 
   leaveRequest EmployeeLeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
-  approver     User                 @relation("LeaveApprover", fields: [approverUserId], references: [id], onDelete: Restrict)
 
   @@unique([leaveRequestId, level])
   @@index([leaveRequestId, status])
